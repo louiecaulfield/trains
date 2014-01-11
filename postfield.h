@@ -1,8 +1,8 @@
 char * postfields = 
 	"site_country=BE&"
 	"site_language=en&"
-	"form_build_id=form-6d982756d10276d8c72448fdccdc3592&"
-	"form_id=_vsct_feature_booking_train_form&"
+//	"form_build_id=form-6d982756d10276d8c72448fdccdc3592&"
+//	"form_id=_vsct_feature_booking_train_form&"
 	"ORIGIN_CITY=Brussels+Midi+%28BE%29&"
 	"DESTINATION_CITY=Perpignan+%28FR%29&"
 	"OUTWARD_DATE=04%2F02%2F2014&"

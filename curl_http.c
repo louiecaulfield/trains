@@ -9,8 +9,7 @@
 //FIXME: this should be removed evnetually
 const char* cookiefile = "cookies.txt";
 
-char curl_errbuf[CURL_ERROR_SIZE];
-CURL *curl_hdl = NULL;
+//char curl_errbuf[CURL_ERROR_SIZE];
 
 size_t write_cb(char *in, size_t size, size_t nmemb, TidyBuffer *out)
 {
@@ -20,9 +19,11 @@ size_t write_cb(char *in, size_t size, size_t nmemb, TidyBuffer *out)
 	return(r);
 }
 
-int curl_http_init()
+int curl_http_init(CURL **curl_hdl_ref)
 {
-	curl_hdl = curl_easy_init();
+	CURL *curl_hdl;
+	*curl_hdl_ref = curl_easy_init();
+	curl_hdl = *curl_hdl_ref;
 	check(curl_hdl, "failed to initialise curl");
 
 	_CURLOPT(VERBOSE, 0);
@@ -40,12 +41,12 @@ error:
 	return -1;
 }
 
-void curl_http_cleanup()
+void curl_http_cleanup(CURL *curl_hdl)
 {
 	curl_easy_cleanup(curl_hdl);
 }
 
-int fetch_html(const char * url, TidyDoc *tdoc)
+int fetch_html(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
 {
 	TidyBuffer docbuf = {0};
 	TidyBuffer tidy_errbuf = {0};
@@ -64,7 +65,7 @@ int fetch_html(const char * url, TidyDoc *tdoc)
 	check(tidyParseBuffer(*tdoc, &docbuf)>=0, "Failed to parse buffer");
 	log_info("Parse complete");
 	check(tidyCleanAndRepair(*tdoc)>=0, "Failed to clean/repair html");
-
+	log_info("Cleanup done");
 	tidyBufFree(&docbuf);
 	tidyBufFree(&tidy_errbuf);
 
@@ -75,21 +76,23 @@ error:
 	return -1;
 }
 
-int fetch_html_get(const char * url, TidyDoc *tdoc)
+int fetch_html_get(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
 {
 	check(curl_hdl, "Curl not initialised!");
 	_CURLOPT(HTTPGET,1);
-	fetch_html(url, tdoc);
+	fetch_html(curl_hdl, url, tdoc);
 error:
 	return -1;
 }
 
-int fetch_html_post(const char * url, const char* postfields, TidyDoc *tdoc)
+int fetch_html_post(CURL *curl_hdl, const char * url, char* postfields, TidyDoc *tdoc)
 { 
+	int res;
 	check(curl_hdl, "Curl not initialised!");
 	_CURLOPT(HTTPPOST, 1);
 	_CURLOPT(POSTFIELDS, postfields);
-	return fetch_html(url, tdoc);
+	res = fetch_html(curl_hdl, url, tdoc);
+	return res; 
 error:
 	return -1;
 

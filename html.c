@@ -49,6 +49,7 @@ TidyNode findNodeById(TidyNode node, char * id)
 	TidyAttr attr;
 	for(child = tidyGetChild(node); child; child = tidyGetNext(child)) {
 		if( (attr = findAttribute(child, "id") ) ) {
+			debug("attr = %p, match = %p", attr, match);
 			if(!strcmp(id, tidyAttrValue(attr))) {
 				//Match!
 				debug("found a match!");
@@ -56,6 +57,7 @@ TidyNode findNodeById(TidyNode node, char * id)
 			}
 		}
 		if ( (match = findNodeById(child, id)) ) {
+			debug("Match found!");
 			return match;
 		}
 	}

@@ -1,4 +1,4 @@
-CFLAGS=-Wall -lcurl -I/opt/local/include
+CFLAGS=-Wall -lcurl -ltidy -I/opt/local/include
 
 all: main
 

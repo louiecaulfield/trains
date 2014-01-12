@@ -9,7 +9,7 @@ static char * postfields_default =
 	"site_language=en&"
 	"form_build_id=form-6d982756d10276d8c72448fdccdc3592&"
 	"form_id=_vsct_feature_booking_train_form&"
-	"INWARD_DATE="
+	"INWARD_DATE=&"
 	"INWARD_TIME=7&"
 	"COMFORT_CLASS=2&"
 	"DIRECT_TRAVEL_CHECK=1&"
@@ -52,19 +52,18 @@ int construct_postfields(CURL *curl_hdl, char ** postfields)
 {
 	int res;
 	char *city_origin, *city_dest, *out_date, *out_time;
-	city_origin = curl_easy_escape(curl_hdl, sncf_cities[388-5], 0);
-	city_dest = curl_easy_escape(curl_hdl, sncf_cities[91-5], 0);
+	city_origin = curl_easy_escape(curl_hdl, sncf_cities[91 -5], 0);
+	city_dest = curl_easy_escape(curl_hdl, sncf_cities[ 53-5], 0);
 
 	res = asprintf(postfields,
-		"%s%s%s%s%s%s%s%s%s",
+		"%s%s%s%s%s%s%s%s%s%s",
 		"ORIGIN_CITY=", city_origin,
-		"DESTINATION_CITY=", city_dest,
-		"OUTWARD_DATE=", "04%2F02%2F2014&",
-		"OUTWARD_TIME=", "15&",
-		postfields_default);
+		"&DESTINATION_CITY=", city_dest,
+		"&OUTWARD_DATE=", "04%2F02%2F2014",
+		"&OUTWARD_TIME=", "15",
+		"&", postfields_default);
 	curl_free(city_origin);
 	curl_free(city_dest);
-	debug("Postfields: \n%s", *postfields);
 	check(res>=0,"Failed to construct postfields");
 	return 0;
 error:

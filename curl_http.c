@@ -80,7 +80,7 @@ int fetch_html_get(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
 {
 	check(curl_hdl, "Curl not initialised!");
 	_CURLOPT(HTTPGET,1);
-	fetch_html(curl_hdl, url, tdoc);
+	return fetch_html(curl_hdl, url, tdoc);
 error:
 	return -1;
 }

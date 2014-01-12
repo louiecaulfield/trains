@@ -52,8 +52,8 @@ int construct_postfields(CURL *curl_hdl, char ** postfields)
 {
 	int res;
 	char *city_origin, *city_dest, *out_date, *out_time;
-	city_origin = curl_easy_escape(curl_hdl, sncf_cities[91 -5], 0);
-	city_dest = curl_easy_escape(curl_hdl, sncf_cities[540-5], 0);
+	city_origin = curl_easy_escape(curl_hdl, sncf_cities[19 -5], 0);
+	city_dest = curl_easy_escape(curl_hdl, sncf_cities[30-5], 0);
 
 	res = asprintf(postfields,
 		"%s%s%s%s%s%s%s%s%s%s",

@@ -1,4 +1,5 @@
 #include <curl/curl.h>
+#include <stdio.h>
 #include "include/dbg.h"
 #include "curl_http.h"
 #include "html.h"
@@ -46,33 +47,74 @@ void curl_http_cleanup(CURL *curl_hdl)
 	curl_easy_cleanup(curl_hdl);
 }
 
-int fetch_html(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
+int parse_docbuf(TidyDoc *tdoc, TidyBuffer docbuf)
 {
-	TidyBuffer docbuf = {0};
 	TidyBuffer tidy_errbuf = {0};
-	_CURLOPT(URL, url);
-
 	*tdoc = tidyCreate();
+
 	tidyOptSetBool(*tdoc, TidyForceOutput, yes);
 	tidyOptSetInt(*tdoc, TidyWrapLen, 4096);
 	tidySetErrorBuffer(*tdoc, &tidy_errbuf);
-	tidyBufInit(&docbuf);
 
-	_CURLOPT(WRITEDATA, &docbuf);
-
-	check(curl_easy_perform(curl_hdl)==0, "Curl request failed");
-	log_info("Fetched the page");
 	check(tidyParseBuffer(*tdoc, &docbuf)>=0, "Failed to parse buffer");
 	log_info("Parse complete");
 	check(tidyCleanAndRepair(*tdoc)>=0, "Failed to clean/repair html");
 	log_info("Cleanup done");
-	tidyBufFree(&docbuf);
 	tidyBufFree(&tidy_errbuf);
+	return 0;
 
+error:
+	if(&tidy_errbuf) tidyBufFree(&tidy_errbuf);
+	return -1;
+}
+int read_html(char *filename, TidyDoc *tdoc)
+{
+	FILE *file;
+	char *file_contents;
+	off_t file_length;
+	int res;
+	TidyBuffer docbuf = {0};
+	tidyBufInit(&docbuf);
+
+	file = fopen(filename, "r");
+	check(file, "failed to open file");
+	res = fseek(file, 0L, SEEK_END);
+	check(res==0, "failed to seek file");
+	file_length = ftell(file);
+	check(file_length>=0, "File length negative (%lld)", file_length);
+	rewind(file);
+
+	log_info("read file with length %lld bytes", file_length);
+	file_contents = malloc(file_length);
+	check_mem(file_contents);
+	fread (file_contents, 1, file_length, file);	
+
+	tidyBufAttach(&docbuf, (byte *)file_contents, strlen(file_contents)+1);
+	parse_docbuf(tdoc, docbuf);
+
+	tidyBufFree(&docbuf);
 	return 0;
 error:
 	tidyBufFree(&docbuf);
-	tidyBufFree(&tidy_errbuf);
+	return -1;
+}
+int fetch_html(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
+{
+	TidyBuffer docbuf = {0};
+	tidyBufInit(&docbuf);
+
+	_CURLOPT(URL, url);
+	_CURLOPT(WRITEDATA, &docbuf);
+
+	check(curl_easy_perform(curl_hdl)==0, "Curl request failed");
+	log_info("Fetched the page");
+
+	parse_docbuf(tdoc, docbuf);	
+
+	tidyBufFree(&docbuf);
+	return 0;
+error:
+	tidyBufFree(&docbuf);
 	return -1;
 }
 

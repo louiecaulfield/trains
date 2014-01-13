@@ -13,7 +13,7 @@
 int main(int argc, char *argv[])
 {
 	int res, i;
-	char *postfields = NULL, *link = NULL;
+	char *postfields = NULL;
 	CURL *curl_hdl = NULL;
  	TidyDoc tdoc = NULL;
 	TidyNode summary;
@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 	check(curl_http_init(&curl_hdl)==0,"Failed to initialise curl");
 	debug("curl_hdl %p", curl_hdl);
 
-#if 1
+#if 0
 /*
  * Request first results page
  */
@@ -63,13 +63,11 @@ int main(int argc, char *argv[])
 		sncf_find_next_results(tdoc, summary, &link);
 	}
 #else
-//Read file
 	res = read_html("dumpfile-1.html", &tdoc);
 	check(res==0, "Failed to read file");
 	sncf_parse_pricesummary(tdoc);
 	summary = findNodeById(tidyGetRoot(tdoc), "block-bestpricesummary");
 	check(summary, "No price summary found");
-//	dumpNode(tdoc, tidyGetRoot(tdoc), 0);	
 #endif
 error:
 	log_info("cleaning up");

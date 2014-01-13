@@ -10,10 +10,10 @@ int sncf_parse_pricesummary(TidyDoc tdoc);
 struct train_info {
 	char * stn_departure;
 	char * stn_arrival;
-	time_t time_depature;
+	time_t time_departure;
 	time_t time_arrival;
 	char * operator;	
-	unsigned int price;
+	float price;
 };
 
 #endif

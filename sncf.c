@@ -53,67 +53,48 @@ error:
 	return -1;
 }
 
-int sncf_parse_pricesummary(TidyDoc tdoc)
+void sncf_print_train_info(struct train_info *trains, size_t n)
+{
+	int i;
+	char format[255]= "%15s | %15s | %10s | %10s | %8s | %20s\n";
+	printf(format, "Departure", "Arrival", "TOD", "arr", "Price", "Operator");
+	printf("-------------------------\n");
+	for(i = 0; i < n; i++)
+	{
+		char time_arr[10], time_dep[10], price[10];
+		struct tm tm;	
+		localtime_r(&trains[i].time_departure, &tm);
+		strftime(time_dep, 10, "%R", &tm);
+		localtime_r(&trains[i].time_arrival, &tm);
+		strftime(time_arr, 10, "%R", &tm);
+		sprintf(price, "%f", trains[i].price);	
+
+		printf(format,
+			trains[i].stn_departure,
+			trains[i].stn_arrival,
+			time_dep,
+			time_arr,
+			price,
+			trains[i].operator
+			);
+	}	
+}
+
+int sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 {
 	TidyNode summary, node;
-	struct node_list *nodes, *node_cur;
-	struct train_info* trains = NULL;
+	struct node_list *nodes = NULL, *node_cur;
+	struct node_list *cells = NULL, *cell_cur;
+	struct train_info *trains = NULL;
 	char *data;
 	char *stn_departure, *stn_arrival;
+	char *cell_text = NULL;
+	const char *header_attr = NULL;
 	unsigned int day, month, year;
 	struct tm tm_current_day;
 	int res, i = 0, ntrains;
-	summary = findNodeById(tidyGetRoot(tdoc), "block-bestpricesummary");
-	check(summary, "No price summary node found");
+	int day_offset = 0;
 
-	/*
-	 * Get the date of the first column from the first <h2>'s <strong>
-	 */
-	findNodesByName(&nodes, summary, "h2");
-	check(nodes, "No <h2> found");
-	node = nodes->node; 
-	freeNodeList(nodes); 
-
-	findNodesByName(&nodes, node, "strong");
-	check(nodes, "No <strong> found");
-	getNodeText(tdoc, nodes->node, &data);
-
-	check_mem(data);
-	
-	res = sscanf(data, "Outward journey between %02u/%02u/%4u",
-				&day, &month, &year);
-
-	tm_current_day.tm_hour = tm_current_day.tm_min = tm_current_day.tm_sec = 0;
-	tm_current_day.tm_mday = day;
-	tm_current_day.tm_mon = month - 1;
-	tm_current_day.tm_year = year - 1900;	
-	tm_current_day.tm_isdst = -1; //Have mktime figure DST out
-
-	freeNodeList(nodes);	
-	free(data);
-#if 0
-	/*
-	 * Find out how many colums we have by adding the
-	 * colspan values of the <th> in the table header
-	 */
-	
-	res = findNodesByClass(&nodes, summary, "dayInfo");
-	check(nodes, "No dayInfo node found");
-	if(res > 1) log_warn("Found more than 1 (%d) dayInfo element!", res);
-	row_days = nodes->node;
-	freeNodeList(nodes);
-
-	res = findNodesByName(&nodes, row_days, "th");
-	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
-		const char *colspan;
-		colspan = getAttributeValue(node_cur->node, "colspan");
-		check(colspan, "Missing colspan on dayInfo <th>");
-		log_info("got colspan %d", atoi(colspan));
-		prices += atoi(colspan);
-	}	
-	log_info("Got %d prices to parse", prices);
-	freeNodeList(nodes);
-#endif
 	/*
 	 * Get departure and destination from breadcrumb
 	 */
@@ -133,26 +114,57 @@ int sncf_parse_pricesummary(TidyDoc tdoc)
 	free(data);
 
 	/*
+	 * Find the node containing the summary table
+	 */
+	summary = findNodeById(tidyGetRoot(tdoc), "block-bestpricesummary");
+	check(summary, "No price summary node found");
+
+	/*
+	 * Get the date of the first column from the first <h2>'s <strong>
+	 */
+	findNodesByName(&nodes, summary, "h2");
+	check(nodes, "No <h2> found");
+	node = nodes->node; 
+	freeNodeList(nodes); 
+
+	findNodesByName(&nodes, node, "strong");
+	check(nodes, "No <strong> found");
+	getNodeText(tdoc, nodes->node, &data);
+	freeNodeList(nodes);	
+
+	check_mem(data);
+	res = sscanf(data, "Outward journey between %02u/%02u/%4u",
+				&day, &month, &year);
+
+	tm_current_day.tm_hour = tm_current_day.tm_min = tm_current_day.tm_sec = 0;
+	tm_current_day.tm_mday = day;
+	tm_current_day.tm_mon = month - 1;
+	tm_current_day.tm_year = year - 1900;	
+	tm_current_day.tm_isdst = -1; //Have mktime figure DST out
+	free(data);
+
+	/*
 	 * Get all rows in the table
 	 */
 	findNodesByName(&nodes, summary, "tbody");
 	check(nodes, "No <tbody> found");
 	node = nodes->node; //We only care about the first find
 	freeNodeList(nodes);
-
+		
+	/*
+	 * Go through all <tr> and parse their <td> into train_info
+	 */
 	res = findNodesByName(&nodes, node, "tr");
 	log_info("found %d table rows", res);
 	check(nodes, "No <tr> found");
-	 	
-	//Go through all rows and parse their <td> into train_info
 	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
-		struct node_list *cells, *cell_cur;
  		ntrains = findNodesByName(&cells, node_cur->node, "td");
 		debug("Found %d cells in row classed %s", 
 			ntrains, getAttributeValue(node_cur->node, "class"));
 		if(!trains) {
 			debug("allocating trains");
 			trains = calloc(ntrains, sizeof(struct train_info));	
+			check_mem(trains);
 			//initialise dept & arr stn as well
 			for(int i = 0; i < ntrains; i++) {
 				trains[i].stn_departure = stn_departure;
@@ -163,14 +175,10 @@ int sncf_parse_pricesummary(TidyDoc tdoc)
 		i = 0;
 		for(cell_cur = cells; cell_cur; cell_cur = cell_cur->next) {
 			//Test for current day (cd) or day after (da)
-			char *cell_text = NULL;
-			const char *header_attr = NULL;
-			int day_offset = 0;
 			header_attr = getAttributeValue(cell_cur->node, "headers");
 			if(strstr(header_attr, "da")) day_offset = 1;
 
 			//Get <td> (and children) contents
-			cell_text = NULL;
 			getNodeText(tdoc, cell_cur->node, &cell_text);
 			check_mem(cell_text);
 
@@ -210,41 +218,19 @@ int sncf_parse_pricesummary(TidyDoc tdoc)
 			free(cell_text);
 			i++;
 		}
-
 		freeNodeList(cells);
 	}
 	freeNodeList(nodes);
 
-	/*
-	 * Let's print what we found
-	 */
-	char format[255]= "%15s | %15s | %10s | %10s | %8s | %20s\n";
-	printf(format, "Departure", "Arrival", "TOD", "arr", "Price", "Operator");
-	printf("-------------------------\n");
-	for(i = 0; i < ntrains; i++)
-	{
-		char time_arr[10], time_dep[10], price[10];
-		struct tm tm;	
-		localtime_r(&trains[i].time_departure, &tm);
-		strftime(time_dep, 10, "%R", &tm);
-		localtime_r(&trains[i].time_arrival, &tm);
-		strftime(time_arr, 10, "%R", &tm);
-		sprintf(price, "%f", trains[i].price);	
-
-		printf(format,
-			trains[i].stn_departure,
-			trains[i].stn_arrival,
-			time_dep,
-			time_arr,
-			price,
-			trains[i].operator
-			);
-
-	}	
-
-	return 0;
+	*ret = trains;
+	return ntrains;
 error:
-	return -1;
+	if(cell_text) free(cell_text);
+	freeNodeList(cells);
+	freeNodeList(nodes);
+	if(trains) free(trains);
+	*ret = NULL;
+	return 0;
 }
 
 static char * postfields_default = 

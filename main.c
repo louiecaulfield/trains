@@ -16,9 +16,8 @@ int main(int argc, char *argv[])
 	char *postfields = NULL;
 	CURL *curl_hdl = NULL;
  	TidyDoc tdoc = NULL;
-	TidyNode summary;
-	//Set up CURL
-	log_info("started SNCF ripper");
+	struct train_info *trains;
+	int ntrains;
 
 	//Set up some stuff
 	check(curl_http_init(&curl_hdl)==0,"Failed to initialise curl");
@@ -65,9 +64,10 @@ int main(int argc, char *argv[])
 #else
 	res = read_html("dumpfile-1.html", &tdoc);
 	check(res==0, "Failed to read file");
-	sncf_parse_pricesummary(tdoc);
-	summary = findNodeById(tidyGetRoot(tdoc), "block-bestpricesummary");
-	check(summary, "No price summary found");
+
+	ntrains = sncf_parse_train_info(tdoc, &trains);
+	log_info("Got %d trains (%p)", ntrains, trains);
+	sncf_print_train_info(trains, ntrains);
 #endif
 error:
 	log_info("cleaning up");

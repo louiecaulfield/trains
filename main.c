@@ -12,63 +12,31 @@
 
 int main(int argc, char *argv[])
 {
-	int res, i;
-	char *postfields = NULL;
+	int res;
 	CURL *curl_hdl = NULL;
  	TidyDoc tdoc = NULL;
-	struct train_info *trains;
+	char * link;
+	struct train_info *trains = NULL;
 	int ntrains;
 
 	//Set up some stuff
 	check(curl_http_init(&curl_hdl)==0,"Failed to initialise curl");
 	debug("curl_hdl %p", curl_hdl);
 
-#if 0
-/*
- * Request first results page
- */
-	construct_postfields(curl_hdl, &postfields);
-	res = fetch_html_post(curl_hdl, 
-		"http://be.voyages-sncf.com/vsc/train-ticket/?_LANG=en",
-		postfields, &tdoc);
-	if(postfields) free(postfields);
-	check(res == 0, "Something went wrong fetching (%d)", res);
+	//Send search query 
+	res = sncf_post_form(curl_hdl, &tdoc, &link);
+	log_info("Initialized (%d) - link = %s", res, link);
 
-	//Find my special one
-	link = strdup(
-		getAttributeValue(
-		findNodeById(tidyGetRoot(tdoc),"url_redirect_proposals"), 
-		"href"));
-	check(link, "Failed to find a link");
+	//Fetch, parse, print
+	for(int i = 0; i < 3; i++) {
+		res = fetch_html_get(curl_hdl, link, &tdoc);	
+		check(res ==  0, "failed to fetch results page");
 
-/*
- * Iterate to get a couple of results
- */
-	for(i=0; i<10; i++) {
-		char * dumpfile_name = NULL;
-		//Fetch results page
-		res = fetch_html_get(curl_hdl, link, &tdoc);
-
-		//Save page to file
-		asprintf(&dumpfile_name, "%s-%d.html", "dumpfile", i);
-		check_mem(dumpfile_name);
-		res = tidySaveFile(tdoc, dumpfile_name); 
-		check(res >= 0, "Failed to save to file");	
-		free(dumpfile_name);
-
-		//Find next page URL
-		summary = findNodeById(tidyGetRoot(tdoc), "block-bestpricesummary");
-		free(link);
-		sncf_find_next_results(tdoc, summary, &link);
+		ntrains = sncf_parse_train_info(tdoc, &trains);
+		sncf_print_train_info(trains, ntrains);
+		free(trains); trains = NULL;
+		sncf_find_next_results(tdoc, &link);
 	}
-#else
-	res = read_html("dumpfile-1.html", &tdoc);
-	check(res==0, "Failed to read file");
-
-	ntrains = sncf_parse_train_info(tdoc, &trains);
-	log_info("Got %d trains (%p)", ntrains, trains);
-	sncf_print_train_info(trains, ntrains);
-#endif
 error:
 	log_info("cleaning up");
 	tidyRelease(tdoc);

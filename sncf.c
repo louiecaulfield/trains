@@ -6,6 +6,7 @@
 #include "sncf.h"
 #include "sncf_cities.h"
 #include "html.h"
+#include "curl_http.h"
 
 static char * postfields_default;
 
@@ -32,10 +33,40 @@ error:
 	return -1;
 }	
 
-int sncf_find_next_results(TidyDoc tdoc, TidyNode summary, char ** link)
+/*
+ * Request first results page
+ */
+int sncf_post_form(CURL *curl_hdl, TidyDoc *tdoc, char ** link)
 {
-	struct node_list *nodes;
+	char *postfields = NULL;
 	int res;
+	construct_postfields(curl_hdl, &postfields);
+	res = fetch_html_post(curl_hdl, 
+		"http://be.voyages-sncf.com/vsc/train-ticket/?_LANG=en",
+		postfields, tdoc);
+	if(postfields) free(postfields);
+	check(res == 0, "Something went wrong fetching (%d)", res);
+
+	//Find my special one
+	*link = strdup(
+		getAttributeValue(
+		findNodeById(tidyGetRoot(*tdoc),"url_redirect_proposals"), 
+		"href"));
+	check(*link, "Failed to find a link");
+
+	return 0;
+error:
+	return -1;
+}
+
+int sncf_find_next_results(TidyDoc tdoc, char ** link)
+{
+	TidyNode summary;
+	struct node_list *nodes = NULL;
+ 	int res;
+	
+	summary = findNodeById(tidyGetRoot(tdoc), "block-bestpricesummary");
+	check(summary, "No summary node found");
 
 	res = findNodesByClass(&nodes, summary, "trainsNext");
 	if(res > 1) log_warn("Found more than 1 elements, memory leaking!");
@@ -133,7 +164,9 @@ int sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	freeNodeList(nodes);	
 
 	check_mem(data);
-	res = sscanf(data, "Outward journey between %02u/%02u/%4u",
+	res = sscanf(data + (strstr(data,"Outward")?
+				strlen("Outward journey between "):
+				strlen("Leaving on ")), "%02u/%02u/%4u",
 				&day, &month, &year);
 
 	tm_current_day.tm_hour = tm_current_day.tm_min = tm_current_day.tm_sec = 0;
@@ -150,13 +183,12 @@ int sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	check(nodes, "No <tbody> found");
 	node = nodes->node; //We only care about the first find
 	freeNodeList(nodes);
-		
+
 	/*
 	 * Go through all <tr> and parse their <td> into train_info
 	 */
 	res = findNodesByName(&nodes, node, "tr");
-	log_info("found %d table rows", res);
-	check(nodes, "No <tr> found");
+	check(res == 4, "didn't find required 4 <tr> nodes");
 	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
  		ntrains = findNodesByName(&cells, node_cur->node, "td");
 		debug("Found %d cells in row classed %s", 

@@ -1,8 +1,10 @@
 #include <stdlib.h>
 #include <curl/curl.h>
+#include <tidy/tidy.h>
 #include "include/dbg.h"
 #include "sncf.h"
 #include "sncf_cities.h"
+#include "html.h"
 
 static char * postfields_default = 
 	"site_country=BE&"
@@ -51,7 +53,7 @@ static char * postfields_default =
 int construct_postfields(CURL *curl_hdl, char ** postfields)
 {
 	int res;
-	char *city_origin, *city_dest, *out_date, *out_time;
+	char *city_origin, *city_dest;//, *out_date, *out_time;
 	city_origin = curl_easy_escape(curl_hdl, sncf_cities[19 -5], 0);
 	city_dest = curl_easy_escape(curl_hdl, sncf_cities[30-5], 0);
 
@@ -70,3 +72,31 @@ error:
 	free(postfields);
 	return -1;
 }	
+int sncf_parse_pricesummary(TidyDoc tdoc)
+{
+	TidyNode summary, row_days = NULL;
+	struct node_list *nodes, *node_cur;
+	int i, days;
+	summary = findNodeById(tidyGetRoot(tdoc), "block-bestpricesummary");
+	check(summary, "No price summary found");
+
+	//Find out how many colums we have
+	nodes = findNodesByClass(summary, "dayInfo");
+
+	if(nodes) row_days = nodes->node;
+	nodes = findNodesByName(row_days, "th");
+
+	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
+		TidyAttr colspan = findAttribute(node_cur->node, "colspan");
+		check(colspan, "OMG no there's no colspan!");
+		const char * days = tidyAttrValue(colspan);
+		log_info("got colspan %d", atoi(days));
+	}	
+	freeNodeList(nodes);
+
+//	th_days = findNodeByNameAndClass(row_days, "th", "k	
+//	dumpNode(tdoc, tidyGetRoot(tdoc), 0);	
+	return 0;
+error:
+	return -1;
+}

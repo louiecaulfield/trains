@@ -2,6 +2,7 @@
 #include <curl/curl.h>
 #include <tidy/tidy.h>
 #include <time.h>
+#include <string.h>
 #include "include/dbg.h"
 #include "sncf.h"
 #include "sncf_cities.h"
@@ -14,8 +15,8 @@ int construct_postfields(CURL *curl_hdl, char ** postfields)
 {
 	int res;
 	char *city_origin, *city_dest;//, *out_date, *out_time;
-	city_origin = curl_easy_escape(curl_hdl, sncf_cities[19 -5], 0);
-	city_dest = curl_easy_escape(curl_hdl, sncf_cities[30-5], 0);
+	city_origin = curl_easy_escape(curl_hdl, sncf_cities[ 91-5], 0);
+	city_dest = curl_easy_escape(curl_hdl, sncf_cities[ 53-5], 0);
 
 	res = asprintf(postfields,
 		"%s%s%s%s%s%s%s%s%s%s",
@@ -61,7 +62,7 @@ error:
 
 int sncf_find_next_results(TidyDoc tdoc, char ** link)
 {
-	TidyNode summary;
+	TidyNode summary, node;
 	struct node_list *nodes = NULL;
  	int res;
 	
@@ -69,18 +70,20 @@ int sncf_find_next_results(TidyDoc tdoc, char ** link)
 	check(summary, "No summary node found");
 
 	res = findNodesByClass(&nodes, summary, "trainsNext");
-	if(res > 1) log_warn("Found more than 1 elements, memory leaking!");
+	if(res > 1) log_warn("Found more than 1 elements");
 	check(nodes, "Couldn't find trainsNext");
-
-	res = findNodesByName(&nodes, nodes->node, "a");
-	if(res > 1) log_warn("Found more than 1 elements, memory leaking!");
+	node = nodes->node;
+	freeNodeList(&nodes);
+	
+	res = findNodesByName(&nodes, node, "a");
+	if(res > 1) log_warn("Found more than 1 elements");
 	check(nodes, "Couldn't find link element");
 	*link = strdup(getAttributeValue(nodes->node, "href"));
 
-	freeNodeList(nodes);
+	freeNodeList(&nodes);
 	return 0;
 error:
-	if(nodes) freeNodeList(nodes);
+	if(nodes) freeNodeList(&nodes);
 	return -1;
 }
 
@@ -113,19 +116,20 @@ void sncf_print_train_info(struct train_info *trains, size_t n, int header)
 	}	
 }
 
-int sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
+size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 {
 	TidyNode summary, node;
-	struct node_list *nodes = NULL, *node_cur;
-	struct node_list *cells = NULL, *cell_cur;
+	struct node_list *nodes = NULL, *node_cur = NULL;
+	struct node_list *cells = NULL, *cell_cur = NULL;
 	struct train_info *trains = NULL;
-	char *data;
-	char *stn_departure, *stn_arrival;
+	char *data = NULL;
+	char *stn_departure = NULL, *stn_arrival = NULL;
 	char *cell_text = NULL;
 	const char *header_attr = NULL;
 	unsigned int day, month, year;
 	struct tm tm_current_day;
-	int res, i = 0, ntrains;
+	int res, i = 0;
+	size_t ntrains = 0;
 	int day_offset = 0;
 
 	/*
@@ -143,7 +147,7 @@ int sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	stn_arrival = strndup(stn_arrival, strstr(stn_arrival,"\n") - stn_arrival);
 	debug("DEP = %s - ARR = %s", stn_departure, stn_arrival);
 
-	freeNodeList(nodes);
+	freeNodeList(&nodes);
 	free(data);
 
 	/*
@@ -158,12 +162,12 @@ int sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	findNodesByName(&nodes, summary, "h2");
 	check(nodes, "No <h2> found");
 	node = nodes->node; 
-	freeNodeList(nodes); 
+	freeNodeList(&nodes); 
 
 	findNodesByName(&nodes, node, "strong");
 	check(nodes, "No <strong> found");
 	getNodeText(tdoc, nodes->node, &data);
-	freeNodeList(nodes);	
+	freeNodeList(&nodes);	
 
 	check_mem(data);
 	res = sscanf(data + (strstr(data,"Outward")?
@@ -184,7 +188,7 @@ int sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	findNodesByName(&nodes, summary, "tbody");
 	check(nodes, "No <tbody> found");
 	node = nodes->node; //We only care about the first find
-	freeNodeList(nodes);
+	freeNodeList(&nodes);
 
 	/*
 	 * Go through all <tr> and parse their <td> into train_info
@@ -193,16 +197,16 @@ int sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	check(res == 4, "didn't find required 4 <tr> nodes");
 	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
  		ntrains = findNodesByName(&cells, node_cur->node, "td");
-		debug("Found %d cells in row classed %s", 
+		debug("Found %lu cells in row classed %s", 
 			ntrains, getAttributeValue(node_cur->node, "class"));
 		if(!trains) {
 			debug("allocating trains");
 			trains = calloc(ntrains, sizeof(struct train_info));	
 			check_mem(trains);
 			//initialise dept & arr stn as well
-			for(int i = 0; i < ntrains; i++) {
-				trains[i].stn_departure = stn_departure;
-				trains[i].stn_arrival = stn_arrival;
+			for(size_t i = 0; i < ntrains; i++) {
+				trains[i].stn_departure = strdup(stn_departure);
+				trains[i].stn_arrival = strdup(stn_arrival);
 			}
 		}
 
@@ -250,23 +254,38 @@ int sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 				log_warn("Unhandled cell data");
 			}
 			free(cell_text);
+			cell_text = NULL;
 			i++;
 		}
-		freeNodeList(cells);
+		freeNodeList(&cells);
 	}
-	freeNodeList(nodes);
-
+	freeNodeList(&nodes);
+	goto success;
+error:
+	sncf_free_train_info(&trains, &ntrains);	
+	free(cell_text);
+	freeNodeList(&cells);
+	freeNodeList(&nodes);
+success:
+	free(stn_departure);
+	free(stn_arrival);
 	*ret = trains;
 	return ntrains;
-error:
-	if(cell_text) free(cell_text);
-	freeNodeList(cells);
-	freeNodeList(nodes);
-	if(trains) free(trains);
-	*ret = NULL;
-	return 0;
+
 }
 
+void sncf_free_train_info(struct train_info **trains, size_t *ntrains)
+{
+	size_t i;
+	for(i = 0; i < *ntrains; i++) {
+		free((*trains)[i].stn_departure);
+		free((*trains)[i].stn_arrival);
+		free((*trains)[i].operator);
+	}
+	free(*trains);
+	*ntrains = 0;
+	*trains = NULL;
+}
 static char * postfields_default = 
 	"site_country=BE&"
 	"site_language=en&"

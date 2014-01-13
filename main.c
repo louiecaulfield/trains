@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
  	TidyDoc tdoc = NULL;
 	char * link;
 	struct train_info *trains = NULL;
-	int ntrains;
+	size_t ntrains;
 
 	//Set up some stuff
 	check(curl_http_init(&curl_hdl)==0,"Failed to initialise curl");
@@ -26,22 +26,25 @@ int main(int argc, char *argv[])
 	//Send search query 
 	res = sncf_post_form(curl_hdl, &tdoc, &link);
 	log_info("Initialized (%d) - link = %s", res, link);
+	tidyRelease(tdoc);
 
 	//Fetch, parse, print
-	for(int i = 0; i < 3000; i++) {
+	for(int i = 0; i < 10; i++) {
 		res = fetch_html_get(curl_hdl, link, &tdoc);	
 		check(res ==  0, "failed to fetch results page");
 
 		ntrains = sncf_parse_train_info(tdoc, &trains);
 		check(ntrains, "No trains found");
 		sncf_print_train_info(trains, ntrains, 0);
-		free(trains); trains = NULL;
+		sncf_free_train_info(&trains, &ntrains);
+
+		free(link);
 		sncf_find_next_results(tdoc, &link);
+		tidyRelease(tdoc);
 	}
+	free(link);
 error:
 	//Dump last download (in case of error)
 	tidySaveFile(tdoc, "dumpfile-exit.html");
-	log_info("cleaning up");
-	tidyRelease(tdoc);
 	return 0;
 }

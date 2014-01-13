@@ -199,10 +199,11 @@ int countNodeList(struct node_list * list)
 		i++;	
 	return i;
 }
-void freeNodeList(struct node_list * list)
+void freeNodeList(struct node_list ** list)
 {
-	if(!list) return;
-	if(list->next)
-		freeNodeList(list->next);
-	free(list);
+	if(!*list) return;
+	if((*list)->next)
+		freeNodeList(&(*list)->next);
+	free(*list);
+	*list = NULL;
 }

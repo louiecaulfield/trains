@@ -38,6 +38,6 @@ int findNodesByClass(struct node_list ** list, TidyNode node, const char * class
  * struct node_list helpers
  */
 int countNodeList(struct node_list * list);
-void freeNodeList(struct node_list * list);
+void freeNodeList(struct node_list ** list);
 
 #endif

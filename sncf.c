@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <curl/curl.h>
 #include <tidy/tidy.h>
+#include <time.h>
 #include "include/dbg.h"
 #include "sncf.h"
 #include "sncf_cities.h"
@@ -34,14 +35,47 @@ int sncf_parse_pricesummary(TidyDoc tdoc)
 {
 	TidyNode summary, row_days = NULL;
 	struct node_list *nodes, *node_cur;
-	int res, i, days = 0;
+	char *data;
+	unsigned int day, month, year;
+	struct tm tm_parse;
+	time_t time_first_date;
+	int res, i, prices = 0;
 	summary = findNodeById(tidyGetRoot(tdoc), "block-bestpricesummary");
-	check(summary, "No price summary found");
+	check(summary, "No price summary node found");
 
-	//Find out how many colums we have
+	/*
+	 * Get the date of the first column from the first <h2>'s <strong>
+	 */
+
+	findNodesByName(&nodes, summary, "h2");
+	check(nodes, "No <h2> found");
+	node_cur = nodes; 
+	freeNodeList(nodes); 
+	findNodesByName(&nodes, node_cur->node, "strong");
+	check(nodes, "No <strong> found");
+	getNodeText(tdoc, nodes->node, &data);
+	log_info("DATA: %s", data);
+	
+	res = sscanf(data, "Outward journey between %02u/%02u/%4u",
+				&day, &month, &year);
+	log_info("Got %d asses (%u/%u/%u)", res, day, month, year);
+	tm_parse.tm_hour = tm_parse.tm_min = tm_parse.tm_sec = 1;
+	tm_parse.tm_mday = day;
+	tm_parse.tm_mon = month - 1;
+	tm_parse.tm_year = year - 1900;	
+	tm_parse.tm_isdst = -1; //Have mktime figure DST out
+	time_first_date = mktime(&tm_parse);
+
+	free(data);
+	freeNodeList(nodes);	
+
+	/*
+	 * Find out how many colums we have by adding the
+	 * colspan values of the <th> in the table header
+	 */
 	
 	res = findNodesByClass(&nodes, summary, "dayInfo");
-	check(nodes, "No dayInfo node found, not parsing this");
+	check(nodes, "No dayInfo node found");
 	if(res > 1) log_warn("Found more than 1 (%d) dayInfo element!", res);
 	row_days = nodes->node;
 	freeNodeList(nodes);
@@ -50,11 +84,11 @@ int sncf_parse_pricesummary(TidyDoc tdoc)
 	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
 		const char *colspan;
 		colspan = getAttributeValue(node_cur->node, "colspan");
-		check(colspan, "OMG no there's no colspan!");
+		check(colspan, "Missing colspan on dayInfo <th>");
 		log_info("got colspan %d", atoi(colspan));
-		days += atoi(colspan);
+		prices += atoi(colspan);
 	}	
-	log_info("Got %d days to parse", days);
+	log_info("Got %d prices to parse", prices);
 	freeNodeList(nodes);
 
 //	th_days = findNodeByNameAndClass(row_days, "th", "k	

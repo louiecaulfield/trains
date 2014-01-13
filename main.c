@@ -28,12 +28,12 @@ int main(int argc, char *argv[])
 	log_info("Initialized (%d) - link = %s", res, link);
 
 	//Fetch, parse, print
-	for(int i = 0; i < 3; i++) {
+	for(int i = 0; i < 30; i++) {
 		res = fetch_html_get(curl_hdl, link, &tdoc);	
 		check(res ==  0, "failed to fetch results page");
 
 		ntrains = sncf_parse_train_info(tdoc, &trains);
-		sncf_print_train_info(trains, ntrains);
+		sncf_print_train_info(trains, ntrains, 0);
 		free(trains); trains = NULL;
 		sncf_find_next_results(tdoc, &link);
 	}

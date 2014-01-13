@@ -84,21 +84,23 @@ error:
 	return -1;
 }
 
-void sncf_print_train_info(struct train_info *trains, size_t n)
+void sncf_print_train_info(struct train_info *trains, size_t n, int header)
 {
 	int i;
-	char format[255]= "%15s | %15s | %10s | %10s | %8s | %20s\n";
-	printf(format, "Departure", "Arrival", "TOD", "arr", "Price", "Operator");
-	printf("-------------------------\n");
+	char format[255]= "%15s | %15s | %20s | %20s | %8s | %20s\n";
+	if(header) {
+		printf(format, "Departure", "Arrival", "TOD", "arr", "Price", "Operator");
+		printf("-------------------------\n");
+	}
 	for(i = 0; i < n; i++)
 	{
-		char time_arr[10], time_dep[10], price[10];
+		char time_arr[20], time_dep[20], price[10];
 		struct tm tm;	
 		localtime_r(&trains[i].time_departure, &tm);
-		strftime(time_dep, 10, "%R", &tm);
+		strftime(time_dep, 20, "%v %R", &tm);
 		localtime_r(&trains[i].time_arrival, &tm);
-		strftime(time_arr, 10, "%R", &tm);
-		sprintf(price, "%f", trains[i].price);	
+		strftime(time_arr, 20, "%v %R", &tm);
+		sprintf(price, "%2.2f", trains[i].price);	
 
 		printf(format,
 			trains[i].stn_departure,

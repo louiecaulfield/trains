@@ -15,6 +15,7 @@ void dumpNode(TidyDoc tdoc, TidyNode tnod, int indent);
 typedef int (*fn_test)(TidyNode node, const char * string);
 
 TidyAttr findAttribute(TidyNode node, const char * attrname);
+const char * getAttributeValue(TidyNode node, const char * attribute_name);
 
 TidyNode findNodeById(TidyNode node, const char * id);
 

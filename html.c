@@ -48,6 +48,16 @@ TidyAttr findAttribute(TidyNode node, const char * attrname)
 	return NULL;
 }
 
+const char * getAttributeValue(TidyNode node, const char * attribute_name)
+{
+	TidyAttr attr = findAttribute(node, attribute_name);
+	if(!attr) {
+		log_warn("missing attribute in getAttributeValue");
+		return NULL;
+	}	
+	return tidyAttrValue(attr);
+}
+
 TidyNode findNodeById(TidyNode node, const char * id)
 {
 	TidyNode child, match = NULL;

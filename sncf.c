@@ -48,9 +48,9 @@ int sncf_parse_pricesummary(TidyDoc tdoc)
 
 	res = findNodesByName(&nodes, row_days, "th");
 	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
-		TidyAttr attr_colspan = findAttribute(node_cur->node, "colspan");
-		check(attr_colspan, "OMG no there's no colspan!");
-		const char * colspan = tidyAttrValue(attr_colspan);
+		const char *colspan;
+		colspan = getAttributeValue(node_cur->node, "colspan");
+		check(colspan, "OMG no there's no colspan!");
 		log_info("got colspan %d", atoi(colspan));
 		days += atoi(colspan);
 	}	

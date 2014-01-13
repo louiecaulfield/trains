@@ -12,6 +12,8 @@ int printNode(TidyNode tnod, int indent);
 
 void dumpNode(TidyDoc tdoc, TidyNode tnod, int indent);
 
+int getNodeText(TidyDoc tdoc, TidyNode tnod, char **data);
+
 typedef int (*fn_test)(TidyNode node, const char * string);
 
 TidyAttr findAttribute(TidyNode node, const char * attrname);
@@ -20,6 +22,7 @@ const char * getAttributeValue(TidyNode node, const char * attribute_name);
 TidyNode findNodeById(TidyNode node, const char * id);
 
 int countNodeList(struct node_list * list);
+
 void freeNodeList(struct node_list * list);
 
 struct node_list * findNodes(fn_test node_test, TidyNode node,

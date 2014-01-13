@@ -36,6 +36,31 @@ void dumpNode(TidyDoc tdoc, TidyNode tnod, int indent)
 	}
 }
 
+int getNodeText(TidyDoc tdoc, TidyNode tnod, char **text)
+{
+	TidyNode child;
+	*text = NULL;
+	for(child = tidyGetChild(tnod); child; child = tidyGetNext(child))
+	{
+		//Node is text? 
+		if(tidyNodeIsText(child)) { 
+			TidyBuffer buf;
+			tidyBufInit(&buf);
+			tidyNodeGetText(tdoc, child, &buf);
+			//Don't append emptiness
+			if(buf.bp) {
+				char * new_text;
+				asprintf(&new_text, "%s%s ", 
+					*text?*text:"",
+					(char *)buf.bp);
+				free(*text);
+				*text = new_text;
+			}
+			tidyBufFree(&buf);
+		}
+	}
+}
+
 TidyAttr findAttribute(TidyNode node, const char * attrname)
 {
 	TidyAttr attr;

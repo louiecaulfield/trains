@@ -91,7 +91,6 @@ int testNodeClass(TidyNode node, const char * class)
 		int res;
 		regex_t regex;
 
-		//asprintf(&regex_patt, "%s%s%s", "(^|\\s)", class, "($|\\s)");
 		asprintf(&regex_patt, "%s%s%s", "(^| )", class, "( |$)");
 		check_mem(regex_patt);
 		regcomp(&regex, regex_patt, REG_EXTENDED | REG_NOSUB);
@@ -134,19 +133,30 @@ error:
 	return NULL;
 }
 
-struct node_list * findNodesByName (TidyNode node, const char * name)
+int findNodesByName (struct node_list ** list, TidyNode node, const char * name)
 {
-	return findNodes(&testNodeName, node, name, NULL);
+	*list = findNodes(&testNodeName, node, name, NULL);
+	return countNodeList(*list);
 }
 
-struct node_list * findNodesByClass(TidyNode node, const char * class)
+int findNodesByClass(struct node_list ** list, TidyNode node, const char * class)
 {
-	return findNodes(&testNodeClass, node, class, NULL);
+	*list = findNodes(&testNodeClass, node, class, NULL);
+	return countNodeList(*list);
+}
+
+int countNodeList(struct node_list * list)
+{
+	int i = 0;
+	for(struct node_list *node_cur = list; 
+		node_cur; node_cur = node_cur->next)
+		i++;	
+	return i;
 }
 void freeNodeList(struct node_list * list)
 {
+	if(!list) return;
 	if(list->next)
 		freeNodeList(list->next);
-	debug("plok");
 	free(list);
 }

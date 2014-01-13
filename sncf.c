@@ -6,6 +6,64 @@
 #include "sncf_cities.h"
 #include "html.h"
 
+static char * postfields_default;
+
+int construct_postfields(CURL *curl_hdl, char ** postfields)
+{
+	int res;
+	char *city_origin, *city_dest;//, *out_date, *out_time;
+	city_origin = curl_easy_escape(curl_hdl, sncf_cities[19 -5], 0);
+	city_dest = curl_easy_escape(curl_hdl, sncf_cities[30-5], 0);
+
+	res = asprintf(postfields,
+		"%s%s%s%s%s%s%s%s%s%s",
+		"ORIGIN_CITY=", city_origin,
+		"&DESTINATION_CITY=", city_dest,
+		"&OUTWARD_DATE=", "04%2F02%2F2014",
+		"&OUTWARD_TIME=", "15",
+		"&", postfields_default);
+	curl_free(city_origin);
+	curl_free(city_dest);
+	check(res>=0,"Failed to construct postfields");
+	return 0;
+error:
+	free(postfields);
+	return -1;
+}	
+int sncf_parse_pricesummary(TidyDoc tdoc)
+{
+	TidyNode summary, row_days = NULL;
+	struct node_list *nodes, *node_cur;
+	int res, i, days = 0;
+	summary = findNodeById(tidyGetRoot(tdoc), "block-bestpricesummary");
+	check(summary, "No price summary found");
+
+	//Find out how many colums we have
+	
+	res = findNodesByClass(&nodes, summary, "dayInfo");
+	check(nodes, "No dayInfo node found, not parsing this");
+	if(res > 1) log_warn("Found more than 1 (%d) dayInfo element!", res);
+	row_days = nodes->node;
+	freeNodeList(nodes);
+
+	res = findNodesByName(&nodes, row_days, "th");
+	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
+		TidyAttr attr_colspan = findAttribute(node_cur->node, "colspan");
+		check(attr_colspan, "OMG no there's no colspan!");
+		const char * colspan = tidyAttrValue(attr_colspan);
+		log_info("got colspan %d", atoi(colspan));
+		days += atoi(colspan);
+	}	
+	log_info("Got %d days to parse", days);
+	freeNodeList(nodes);
+
+//	th_days = findNodeByNameAndClass(row_days, "th", "k	
+//	dumpNode(tdoc, tidyGetRoot(tdoc), 0);	
+	return 0;
+error:
+	return -1;
+}
+
 static char * postfields_default = 
 	"site_country=BE&"
 	"site_language=en&"
@@ -50,53 +108,4 @@ static char * postfields_default =
 	"DISTRIBUTED_COUNTRY=BE&"
 	"action%3AsearchTravel=SEARCH";
 
-int construct_postfields(CURL *curl_hdl, char ** postfields)
-{
-	int res;
-	char *city_origin, *city_dest;//, *out_date, *out_time;
-	city_origin = curl_easy_escape(curl_hdl, sncf_cities[19 -5], 0);
-	city_dest = curl_easy_escape(curl_hdl, sncf_cities[30-5], 0);
 
-	res = asprintf(postfields,
-		"%s%s%s%s%s%s%s%s%s%s",
-		"ORIGIN_CITY=", city_origin,
-		"&DESTINATION_CITY=", city_dest,
-		"&OUTWARD_DATE=", "04%2F02%2F2014",
-		"&OUTWARD_TIME=", "15",
-		"&", postfields_default);
-	curl_free(city_origin);
-	curl_free(city_dest);
-	check(res>=0,"Failed to construct postfields");
-	return 0;
-error:
-	free(postfields);
-	return -1;
-}	
-int sncf_parse_pricesummary(TidyDoc tdoc)
-{
-	TidyNode summary, row_days = NULL;
-	struct node_list *nodes, *node_cur;
-	int i, days;
-	summary = findNodeById(tidyGetRoot(tdoc), "block-bestpricesummary");
-	check(summary, "No price summary found");
-
-	//Find out how many colums we have
-	nodes = findNodesByClass(summary, "dayInfo");
-
-	if(nodes) row_days = nodes->node;
-	nodes = findNodesByName(row_days, "th");
-
-	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
-		TidyAttr colspan = findAttribute(node_cur->node, "colspan");
-		check(colspan, "OMG no there's no colspan!");
-		const char * days = tidyAttrValue(colspan);
-		log_info("got colspan %d", atoi(days));
-	}	
-	freeNodeList(nodes);
-
-//	th_days = findNodeByNameAndClass(row_days, "th", "k	
-//	dumpNode(tdoc, tidyGetRoot(tdoc), 0);	
-	return 0;
-error:
-	return -1;
-}

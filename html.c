@@ -36,7 +36,7 @@ void dumpNode(TidyDoc tdoc, TidyNode tnod, int indent)
 	}
 }
 
-void getNodeText(TidyDoc tdoc, TidyNode tnod, char **text)
+void _getNodeText(TidyDoc tdoc, TidyNode tnod, char **text)
 {
 	TidyNode child;
 	for(child = tidyGetChild(tnod); child; child = tidyGetNext(child))
@@ -52,13 +52,22 @@ void getNodeText(TidyDoc tdoc, TidyNode tnod, char **text)
 				asprintf(&new_text, "%s%s ", 
 					*text?*text:"",
 					(char *)buf.bp);
-				if(*text) free(*text);
+				if(*text) {
+					free(*text);
+				}
 				*text = new_text;
 			}
 			tidyBufFree(&buf);
 		}
-		getNodeText(tdoc, child, text); 	
+		_getNodeText(tdoc, child, text); 	
 	}
+}
+
+void getNodeText(TidyDoc tdoc, TidyNode tnod, char **text)
+{
+	char * t = NULL;
+	_getNodeText(tdoc, tnod, &t);
+	*text = t;
 }
 
 TidyAttr findAttribute(TidyNode node, const char * attrname)
@@ -130,10 +139,11 @@ int testNodeClass(TidyNode node, const char * class)
 		asprintf(&regex_patt, "%s%s%s", "(^| )", class, "( |$)");
 		check_mem(regex_patt);
 		regcomp(&regex, regex_patt, REG_EXTENDED | REG_NOSUB);
-		free(regex_patt);
 
 		res = regexec(&regex, attr_value, 0, NULL, 0);
 		regfree(&regex);
+		free(regex_patt);
+
 		return res?0:1;
 	}
 error:

@@ -36,10 +36,9 @@ void dumpNode(TidyDoc tdoc, TidyNode tnod, int indent)
 	}
 }
 
-int getNodeText(TidyDoc tdoc, TidyNode tnod, char **text)
+void getNodeText(TidyDoc tdoc, TidyNode tnod, char **text)
 {
 	TidyNode child;
-	*text = NULL;
 	for(child = tidyGetChild(tnod); child; child = tidyGetNext(child))
 	{
 		//Node is text? 
@@ -53,17 +52,19 @@ int getNodeText(TidyDoc tdoc, TidyNode tnod, char **text)
 				asprintf(&new_text, "%s%s ", 
 					*text?*text:"",
 					(char *)buf.bp);
-				free(*text);
+				if(*text) free(*text);
 				*text = new_text;
 			}
 			tidyBufFree(&buf);
 		}
+		getNodeText(tdoc, child, text); 	
 	}
 }
 
 TidyAttr findAttribute(TidyNode node, const char * attrname)
 {
 	TidyAttr attr;
+	if(!node) return NULL;
 	for(attr = tidyAttrFirst(node); attr; attr=tidyAttrNext(attr)) {
 		//FIXME: use strncmp instead?
 		if(!strcmp(attrname, tidyAttrName(attr))) {

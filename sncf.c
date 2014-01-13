@@ -31,11 +31,34 @@ error:
 	free(postfields);
 	return -1;
 }	
+
+int sncf_find_next_results(TidyDoc tdoc, TidyNode summary, char ** link)
+{
+	struct node_list *nodes;
+	int res;
+
+	res = findNodesByClass(&nodes, summary, "trainsNext");
+	if(res > 1) log_warn("Found more than 1 elements, memory leaking!");
+	check(nodes, "Couldn't find trainsNext");
+
+	res = findNodesByName(&nodes, nodes->node, "a");
+	if(res > 1) log_warn("Found more than 1 elements, memory leaking!");
+	check(nodes, "Couldn't find link element");
+	*link = strdup(getAttributeValue(nodes->node, "href"));
+
+	freeNodeList(nodes);
+	return 0;
+error:
+	if(nodes) freeNodeList(nodes);
+	return -1;
+}
+
 int sncf_parse_pricesummary(TidyDoc tdoc)
 {
 	TidyNode summary, row_days = NULL;
 	struct node_list *nodes, *node_cur;
-	char *data;
+	struct train_info* trains = NULL;
+	char *data = NULL;
 	unsigned int day, month, year;
 	struct tm tm_parse;
 	time_t time_first_date;
@@ -91,6 +114,48 @@ int sncf_parse_pricesummary(TidyDoc tdoc)
 	log_info("Got %d prices to parse", prices);
 	freeNodeList(nodes);
 
+	/*
+	 * Get all rows in the table
+	 */
+	findNodesByName(&nodes, summary, "tbody");
+	check(nodes, "No <tbody> found");
+	node_cur = nodes; //We only care about the first find
+	freeNodeList(nodes);
+	res = findNodesByName(&nodes, node_cur->node, "tr");
+	log_info("found %d table rows", res);
+	check(nodes, "No <tr> found");
+	 	
+	//Go through all rows and parse their <td> into train_info
+	trains = calloc(prices, sizeof(struct train_info));	
+	i = 0;
+	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
+		struct node_list *cells, *cell_cur;
+		char *cell_text = NULL;
+ 		res = findNodesByName(&cells, node_cur->node, "td");
+		log_info("Found %d cells in row classed %s", 
+			res, getAttributeValue(node_cur->node, "class"));
+		for(cell_cur = cells; cell_cur; cell_cur = cell_cur->next) {
+			cell_text = NULL;
+			getNodeText(tdoc, cell_cur->node, &cell_text);
+
+			//add the cell to the appropriate field
+			if(testNodeClass(node_cur->node, "departureTime")) {
+				log_info("adding deptime %s", cell_text); 
+			} else if(testNodeClass(node_cur->node, "price")) {
+				log_info("adding price %s", cell_text); 
+			} else if(testNodeClass(node_cur->node, "duration")) {
+				log_info("adding duration %s", cell_text); 
+			} else if(testNodeClass(node_cur->node, "transporteur")) {
+				log_info("adding transporter %s", cell_text); 
+			} else {
+				log_warn("Unhandled cell data");
+			}
+			free(cell_text);
+		}
+
+		freeNodeList(cells);
+	}
+	freeNodeList(nodes);
 //	th_days = findNodeByNameAndClass(row_days, "th", "k	
 //	dumpNode(tdoc, tidyGetRoot(tdoc), 0);	
 	return 0;

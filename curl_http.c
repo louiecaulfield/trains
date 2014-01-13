@@ -57,9 +57,9 @@ int parse_docbuf(TidyDoc *tdoc, TidyBuffer docbuf)
 	tidySetErrorBuffer(*tdoc, &tidy_errbuf);
 
 	check(tidyParseBuffer(*tdoc, &docbuf)>=0, "Failed to parse buffer");
-	log_info("Parse complete");
+	debug("Parse complete");
 	check(tidyCleanAndRepair(*tdoc)>=0, "Failed to clean/repair html");
-	log_info("Cleanup done");
+	debug("Cleanup done");
 	tidyBufFree(&tidy_errbuf);
 	return 0;
 
@@ -84,7 +84,7 @@ int read_html(char *filename, TidyDoc *tdoc)
 	check(file_length>=0, "File length negative (%lld)", file_length);
 	rewind(file);
 
-	log_info("read file with length %lld bytes", file_length);
+	debug("read file with length %lld bytes", file_length);
 	file_contents = malloc(file_length);
 	check_mem(file_contents);
 	fread (file_contents, 1, file_length, file);	
@@ -100,6 +100,8 @@ error:
 }
 int fetch_html(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
 {
+	debug("Fetching %s", url);
+
 	TidyBuffer docbuf = {0};
 	tidyBufInit(&docbuf);
 
@@ -107,7 +109,7 @@ int fetch_html(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
 	_CURLOPT(WRITEDATA, &docbuf);
 
 	check(curl_easy_perform(curl_hdl)==0, "Curl request failed");
-	log_info("Fetched the page");
+	debug("Fetched the page");
 
 	parse_docbuf(tdoc, docbuf);	
 

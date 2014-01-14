@@ -12,7 +12,7 @@
 
 int main(int argc, char *argv[])
 {
-	int res;
+	int res, consecutive_success = 0;
 	CURL *curl_hdl = NULL;
  	TidyDoc tdoc = NULL;
 	char *link, *new_link;
@@ -49,6 +49,7 @@ int main(int argc, char *argv[])
 
 		ntrains = sncf_parse_train_info(tdoc, &trains);
 		check(ntrains, "No trains found");
+		consecutive_success++; 
 		sncf_print_train_info(trains, ntrains, 0);
 
 		res = sncf_find_next_results(tdoc, &new_link);
@@ -64,9 +65,12 @@ int main(int argc, char *argv[])
 			free(new_link);
 			tidyRelease(tdoc);
 
-			log_err("Next results page is the same as the current one");
+			log_warn("Next results page is the same as the current one (%d successes)", consecutive_success);
+			check(consecutive_success > 2,
+				"Only 2 success before loop, aborting");
 			localtime_r(&trains[ntrains-1].time_departure, &time_dep);
 
+			consecutive_success = 0;
 			res = sncf_post_form(curl_hdl, &tdoc, 
 				&new_link, &time_dep, 
 				city_departure, city_arrival);

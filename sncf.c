@@ -130,7 +130,7 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	struct tm tm_current_day;
 	int res, i = 0;
 	size_t ntrains = 0;
-	int day_offset = 0;
+	int day_offset, day_before_encountered;
 
 	/*
 	 * Get departure and destination from breadcrumb
@@ -211,12 +211,8 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 		}
 
 		i = 0;
+		day_before_encountered = 0;
 		for(cell_cur = cells; cell_cur; cell_cur = cell_cur->next) {
-			//Test for current day (cd) or day after (da)
-			header_attr = getAttributeValue(cell_cur->node, "headers");
-			if(strstr(header_attr, "da")) day_offset = 1;
-			check(!strstr(header_attr, "db"), "Found <td> with header db (day-before) - parse error");
-
 			//Get <td> (and children) contents
 			getNodeText(tdoc, cell_cur->node, &cell_text);
 			check_mem(cell_text);
@@ -224,6 +220,21 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 			//add the cell to the appropriate field
 			if(testNodeClass(node_cur->node, "departureTime")) {
 				struct tm tm_departure = tm_current_day;
+
+				//Test for day before (db) current day (cd) or day after (da)
+				header_attr = getAttributeValue(cell_cur->node, "headers");
+				if(strstr(header_attr, "db")) {
+					day_before_encountered = 1;
+					day_offset = 0;
+				} else if(strstr(header_attr, "cd")) {
+					day_offset = day_before_encountered;
+				} else if(strstr(header_attr, "da")) {
+					day_offset = 1 + day_before_encountered;
+				} else {
+					log_err("Didn't find day specified in <td header>");
+					goto error;
+				}
+
 				res = sscanf(cell_text, "%02dh%02d", 
 					&tm_departure.tm_hour,
 					&tm_departure.tm_min);		

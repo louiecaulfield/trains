@@ -39,7 +39,8 @@ int main(int argc, char *argv[])
 		sncf_free_train_info(&trains, &ntrains);
 
 		free(link);
-		sncf_find_next_results(tdoc, &link);
+		res = sncf_find_next_results(tdoc, &link);
+		check(res == 0, "failed to get link to next results");
 		tidyRelease(tdoc);
 	}
 	free(link);

@@ -11,19 +11,26 @@
 
 static char * postfields_default;
 
-int construct_postfields(CURL *curl_hdl, char ** postfields)
+int construct_postfields(CURL *curl_hdl, char ** postfields, 
+	struct tm *time_departure, 
+	int city_departure, int city_arrival)
 {
 	int res;
-	char *city_origin, *city_dest;//, *out_date, *out_time;
-	city_origin = curl_easy_escape(curl_hdl, sncf_cities[ 91-5], 0);
-	city_dest = curl_easy_escape(curl_hdl, sncf_cities[ 53-5], 0);
+	char *city_origin, *city_dest, out_date[16], out_time[4];
+
+	city_origin = curl_easy_escape(curl_hdl, sncf_cities[city_departure], 0);
+	city_dest = curl_easy_escape(curl_hdl, sncf_cities[city_arrival], 0);
+
+	strftime(out_date, 16, "%d%%2F%m%%2F%Y", time_departure);	
+	strftime(out_time, 4, "%H", time_departure);	
+	debug("out_date = [%s] ; out_time = [%s]", out_date, out_time);
 
 	res = asprintf(postfields,
 		"%s%s%s%s%s%s%s%s%s%s",
 		"ORIGIN_CITY=", city_origin,
 		"&DESTINATION_CITY=", city_dest,
-		"&OUTWARD_DATE=", "04%2F02%2F2014",
-		"&OUTWARD_TIME=", "15",
+		"&OUTWARD_DATE=", out_date, 
+		"&OUTWARD_TIME=", out_time, 
 		"&", postfields_default);
 	curl_free(city_origin);
 	curl_free(city_dest);
@@ -37,11 +44,13 @@ error:
 /*
  * Request first results page
  */
-int sncf_post_form(CURL *curl_hdl, TidyDoc *tdoc, char ** link)
+int sncf_post_form(CURL *curl_hdl, TidyDoc *tdoc, char ** link, 
+	struct tm *time_departure, 
+	int city_departure, int city_arrival)
 {
 	char *postfields = NULL;
 	int res;
-	construct_postfields(curl_hdl, &postfields);
+	construct_postfields(curl_hdl, &postfields, time_departure, 91-5, 381-5);
 	res = fetch_html_post(curl_hdl, 
 		"http://be.voyages-sncf.com/vsc/train-ticket/?_LANG=en",
 		postfields, tdoc);

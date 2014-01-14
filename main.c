@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
  	TidyDoc tdoc = NULL;
 	char *link, *new_link;
 	struct tm time_dep;
+	//FIXME: use city indexes instead of hardcoding in sncf_post_form
 	int city_departure =  91-5, city_arrival = 381-5;
 	struct train_info *trains = NULL;
 	size_t ntrains;
@@ -26,7 +27,6 @@ int main(int argc, char *argv[])
 	debug("curl_hdl %p", curl_hdl);
 
 	//Send search query 
-	//FIXME: use city indexes instead of hardcoding in sncf_post_form
 	time_dep.tm_sec = time_dep.tm_min = 0;
 	time_dep.tm_hour = 15;
 	time_dep.tm_mday = 4;

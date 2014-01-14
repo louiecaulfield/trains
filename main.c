@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 	int res;
 	CURL *curl_hdl = NULL;
  	TidyDoc tdoc = NULL;
-	char * link;
+	char *link, *new_link;
 	struct train_info *trains = NULL;
 	size_t ntrains;
 
@@ -38,9 +38,15 @@ int main(int argc, char *argv[])
 		sncf_print_train_info(trains, ntrains, 0);
 		sncf_free_train_info(&trains, &ntrains);
 
-		free(link);
-		res = sncf_find_next_results(tdoc, &link);
+		res = sncf_find_next_results(tdoc, &new_link);
 		check(res == 0, "failed to get link to next results");
+		if(!strcmp(link, new_link)) {
+			log_err("Next results page is the same as the current one");
+			//FIXME: should restart with last train date as starting date
+			goto error;
+		}
+		free(link);
+		link = new_link;
 		tidyRelease(tdoc);
 	}
 	free(link);

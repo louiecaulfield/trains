@@ -138,7 +138,7 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	node = findNodeById(tidyGetRoot(tdoc), "breadcrumb");
 	check(node, "Breadcrumb node not found");
 	res = findNodesByClass(&nodes, node, "actual");
-	if(res > 1) log_warn("More than 1 nodes found, Memory leak probably");
+	if(res > 1) log_warn("More than 1 nodes found where only 1 expected");
 
 	getNodeText(tdoc, nodes->node, &data);
 	stn_departure = data + strlen("Your reservation for ");
@@ -196,7 +196,7 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	res = findNodesByName(&nodes, node, "tr");
 	check(res == 4, "didn't find required 4 <tr> nodes");
 	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
- 		ntrains = findNodesByName(&cells, node_cur->node, "td");
+		ntrains = findNodesByName(&cells, node_cur->node, "td");
 		debug("Found %lu cells in row classed %s", 
 			ntrains, getAttributeValue(node_cur->node, "class"));
 		if(!trains) {
@@ -215,6 +215,7 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 			//Test for current day (cd) or day after (da)
 			header_attr = getAttributeValue(cell_cur->node, "headers");
 			if(strstr(header_attr, "da")) day_offset = 1;
+			check(!strstr(header_attr, "db"), "Found <td> with header db (day-before) - parse error");
 
 			//Get <td> (and children) contents
 			getNodeText(tdoc, cell_cur->node, &cell_text);
@@ -229,16 +230,15 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 				tm_departure.tm_mday += day_offset;
 				trains[i].time_departure = mktime(&tm_departure);
 				check(res == 2, "failed to assign time");
-				
 			} else if(testNodeClass(node_cur->node, "price")) {
 				float price;
 				res = sscanf(cell_text, "%f", &price);
 				check(res == 1, "too many prices found");	
 				trains[i].price = price;
 			} else if(testNodeClass(node_cur->node, "duration")) {
-				//departureTime should be set already
 				struct tm tm_arrival;
 				int dur_hour, dur_min;
+				//departureTime should be set already
 				gmtime_r(&trains[i].time_departure, &tm_arrival);
 				res = sscanf(cell_text, "%02dh%02d", 
 					&dur_hour,
@@ -248,6 +248,7 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 				tm_arrival.tm_min += dur_min;
 				trains[i].time_arrival = timegm(&tm_arrival);
 			} else if(testNodeClass(node_cur->node, "transporteur")) {
+				//Cut off operator at first \n
 				trains[i].operator = strndup(cell_text, 
 					strstr(cell_text, "\n") - cell_text);
 			} else {
@@ -283,8 +284,8 @@ void sncf_free_train_info(struct train_info **trains, size_t *ntrains)
 		free((*trains)[i].operator);
 	}
 	free(*trains);
-	*ntrains = 0;
 	*trains = NULL;
+	*ntrains = 0;
 }
 static char * postfields_default = 
 	"site_country=BE&"

@@ -298,10 +298,12 @@ success:
 void sncf_free_train_info(struct train_info **trains, size_t *ntrains)
 {
 	size_t i;
-	for(i = 0; i < *ntrains; i++) {
-		free((*trains)[i].stn_departure);
-		free((*trains)[i].stn_arrival);
-		free((*trains)[i].operator);
+	if(*trains) {
+		for(i = 0; i < *ntrains; i++) {
+			free((*trains)[i].stn_departure);
+			free((*trains)[i].stn_arrival);
+			free((*trains)[i].operator);
+		}
 	}
 	free(*trains);
 	*trains = NULL;

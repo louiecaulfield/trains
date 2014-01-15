@@ -39,18 +39,13 @@ int main(int argc, char *argv[])
 		city_departure, city_arrival);
 	check(res==0, "Failed to perform query");
 	log_info("Initialized (%d) - link = %s", res, link);
-	tidyRelease(tdoc);
 
 	//Fetch, parse, print
 	for(int i = 0; i < 1000; i++) {
 		debug("Next link %s", link);
+		tidyRelease(tdoc);
 		res = fetch_html_get(curl_hdl, link, &tdoc);	
 		check(res ==  0, "failed to fetch results page");
-
-		ntrains = sncf_parse_train_info(tdoc, &trains);
-		check(ntrains, "No trains found");
-		consecutive_success++; 
-		sncf_print_train_info(trains, ntrains, 0);
 
 		res = sncf_find_next_results(tdoc, &new_link);
 		check(res == 0, "failed to get link to next results");
@@ -62,8 +57,8 @@ int main(int argc, char *argv[])
  * new query and continue from there
  */
 		if(!strcmp(link, new_link)) {
+			free(link);
 			free(new_link);
-			tidyRelease(tdoc);
 
 			log_warn("Next results page is the same as the current one (%d successes)", consecutive_success);
 			check(consecutive_success > 2,
@@ -71,19 +66,27 @@ int main(int argc, char *argv[])
 			localtime_r(&trains[ntrains-1].time_departure, &time_dep);
 
 			consecutive_success = 0;
+			tidyRelease(tdoc);
 			res = sncf_post_form(curl_hdl, &tdoc, 
-				&new_link, &time_dep, 
+				&link, &time_dep, 
 				city_departure, city_arrival);
 			check(res==0, "Failed to perform query");
+			continue;
 		}
+
 		sncf_free_train_info(&trains, &ntrains);
+		ntrains = sncf_parse_train_info(tdoc, &trains);
+		check(ntrains, "No trains found");
+		consecutive_success++; 
+		sncf_print_train_info(trains, ntrains, 0);
+
 		free(link);
 		link = new_link;
-		tidyRelease(tdoc);
 	}
 	free(link);
 error:
 	//Dump last download (in case of error)
 	tidySaveFile(tdoc, "dumpfile-exit.html");
+	tidyRelease(tdoc);
 	return 0;
 }

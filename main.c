@@ -17,8 +17,8 @@ int main(int argc, char *argv[])
  	TidyDoc tdoc = NULL;
 	char *link, *new_link;
 	struct tm time_dep;
-	//FIXME: use city indexes instead of hardcoding in sncf_post_form
-	int city_departure =  91-5, city_arrival = 381-5;
+	//FIXME: get these numbers dynamically 
+	int stn_departure =  91-5, stn_arrival = 381-5;
 	struct train_info *trains = NULL;
 	size_t ntrains;
 
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 
 	res = sncf_post_form(curl_hdl, &tdoc, 
 		&link, &time_dep, 
-		city_departure, city_arrival);
+		stn_departure, stn_arrival);
 	check(res==0, "Failed to perform query");
 	log_info("Initialized (%d) - link = %s", res, link);
 
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 			tidyRelease(tdoc);
 			res = sncf_post_form(curl_hdl, &tdoc, 
 				&link, &time_dep, 
-				city_departure, city_arrival);
+				stn_departure, stn_arrival);
 			check(res==0, "Failed to perform query");
 			continue;
 		}

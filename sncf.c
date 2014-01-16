@@ -13,13 +13,13 @@ static char * postfields_default;
 
 int construct_postfields(CURL *curl_hdl, char ** postfields, 
 	struct tm *time_departure, 
-	int city_departure, int city_arrival)
+	int stn_departure, int stn_arrival)
 {
 	int res;
-	char *city_origin, *city_dest, out_date[16], out_time[4];
+	char *str_stn_departure, *str_stn_arrival, out_date[16], out_time[4];
 
-	city_origin = curl_easy_escape(curl_hdl, sncf_cities[city_departure], 0);
-	city_dest = curl_easy_escape(curl_hdl, sncf_cities[city_arrival], 0);
+	str_stn_departure = curl_easy_escape(curl_hdl, sncf_cities[stn_departure], 0);
+	str_stn_arrival = curl_easy_escape(curl_hdl, sncf_cities[stn_arrival], 0);
 
 	strftime(out_date, 16, "%d%%2F%m%%2F%Y", time_departure);	
 	strftime(out_time, 4, "%H", time_departure);	
@@ -27,13 +27,13 @@ int construct_postfields(CURL *curl_hdl, char ** postfields,
 
 	res = asprintf(postfields,
 		"%s%s%s%s%s%s%s%s%s%s",
-		"ORIGIN_CITY=", city_origin,
-		"&DESTINATION_CITY=", city_dest,
+		"ORIGIN_CITY=", str_stn_departure,
+		"&DESTINATION_CITY=", str_stn_arrival,
 		"&OUTWARD_DATE=", out_date, 
 		"&OUTWARD_TIME=", out_time, 
 		"&", postfields_default);
-	curl_free(city_origin);
-	curl_free(city_dest);
+	curl_free(str_stn_departure);
+	curl_free(str_stn_arrival);
 	check(res>=0,"Failed to construct postfields");
 	return 0;
 error:
@@ -46,12 +46,12 @@ error:
  */
 int sncf_post_form(CURL *curl_hdl, TidyDoc *tdoc, char ** link, 
 	struct tm *time_departure, 
-	int city_departure, int city_arrival)
+	int stn_departure, int stn_arrival)
 {
 	char *postfields = NULL;
 	int res;
 	construct_postfields(curl_hdl, &postfields, 
-		time_departure, city_departure, city_arrival);
+		time_departure, stn_departure, stn_arrival);
 	res = fetch_html_post(curl_hdl, 
 		"http://be.voyages-sncf.com/vsc/train-ticket/?_LANG=en",
 		postfields, tdoc);
@@ -143,7 +143,7 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	int day_offset, day_before_encountered;
 
 	/*
-	 * Get departure and destination from breadcrumb
+	 * Get departure and arrival from breadcrumb
 	 */
 	node = findNodeById(tidyGetRoot(tdoc), "breadcrumb");
 	check(node, "Breadcrumb node not found");

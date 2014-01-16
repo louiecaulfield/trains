@@ -1,12 +1,13 @@
-CFLAGS=-Wall -g -lcurl -ltidy -I/opt/local/include
+CFLAGS=-Wall -g -lcurl -ltidy -lsqlite3 -I/opt/local/include
 
-all: main
+all: main db
 
 debug: CFLAGS+=-DDEBUG 
-debug: main
+debug: all 
 
 
 main: html.o curl_http.o sncf.o
+db: sncf_stations_to_db
 
 clean: 
-	rm main *.o
+	rm main sncf_stations_to_db *.o

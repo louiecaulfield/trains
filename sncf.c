@@ -50,7 +50,8 @@ int sncf_post_form(CURL *curl_hdl, TidyDoc *tdoc, char ** link,
 {
 	char *postfields = NULL;
 	int res;
-	construct_postfields(curl_hdl, &postfields, time_departure, 91-5, 381-5);
+	construct_postfields(curl_hdl, &postfields, 
+		time_departure, city_departure, city_arrival);
 	res = fetch_html_post(curl_hdl, 
 		"http://be.voyages-sncf.com/vsc/train-ticket/?_LANG=en",
 		postfields, tdoc);

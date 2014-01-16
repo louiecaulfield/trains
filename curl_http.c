@@ -7,11 +7,6 @@
 #define _CURLOPT(setting, value) \
 		curl_easy_setopt(curl_hdl, CURLOPT_##setting, value);
 
-//FIXME: this should be removed evnetually
-const char* cookiefile = "cookies.txt";
-
-//char curl_errbuf[CURL_ERROR_SIZE];
-
 size_t write_cb(char *in, size_t size, size_t nmemb, TidyBuffer *out)
 {
 	size_t r;
@@ -28,13 +23,11 @@ int curl_http_init(CURL **curl_hdl_ref)
 	check(curl_hdl, "failed to initialise curl");
 
 	_CURLOPT(VERBOSE, 0);
-	_CURLOPT(HEADER, 0);
+	_CURLOPT(HEADER, 0);			//don't put headers in result
 	_CURLOPT(NOPROGRESS, 1);
-	_CURLOPT(FOLLOWLOCATION, 1);
-//	FIXME: Stop using cookiejar when ready, or at least make it configurable
-//	_CURLOPT(COOKIEFILE, ""); 	  //enable cookies
-	_CURLOPT(COOKIEJAR, cookiefile); //Makes curl write cookies back at cleanup
-	_CURLOPT(WRITEFUNCTION, write_cb);
+	_CURLOPT(FOLLOWLOCATION, 1);		//follow redirections
+	_CURLOPT(COOKIEFILE, ""); 	  	//enable cookies
+	_CURLOPT(WRITEFUNCTION, write_cb);	//use write_cb function to store data
 
 	return 0;
 
@@ -141,4 +134,3 @@ error:
 	return -1;
 
 }
-

@@ -5,7 +5,7 @@
 #include <string.h>
 #include "include/dbg.h"
 #include "sncf.h"
-#include "sncf_cities.h"
+#include "sncf_stations.h"
 #include "html.h"
 #include "curl_http.h"
 
@@ -18,8 +18,8 @@ int construct_postfields(CURL *curl_hdl, char ** postfields,
 	int res;
 	char *str_stn_departure, *str_stn_arrival, out_date[16], out_time[4];
 
-	str_stn_departure = curl_easy_escape(curl_hdl, sncf_cities[stn_departure], 0);
-	str_stn_arrival = curl_easy_escape(curl_hdl, sncf_cities[stn_arrival], 0);
+	str_stn_departure = curl_easy_escape(curl_hdl, sncf_stations[stn_departure], 0);
+	str_stn_arrival = curl_easy_escape(curl_hdl, sncf_stations[stn_arrival], 0);
 
 	strftime(out_date, 16, "%d%%2F%m%%2F%Y", time_departure);	
 	strftime(out_time, 4, "%H", time_departure);	

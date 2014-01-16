@@ -1,7 +1,7 @@
-#ifndef SNCF_CITIES_H
-#define SNCF_CITIES_H
+#ifndef SNCF_STATIONS_H
+#define SNCF_STATIONS_H
 
-char * sncf_cities[] = {
+char * sncf_stations[] = {
 	"Aachen (DE)",
 	"Abbeville (FR)",
 	"Agde (FR)",

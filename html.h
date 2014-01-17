@@ -2,6 +2,7 @@
 #define HTML_H
 
 #include <tidy/tidy.h>
+
 struct node_list 
 {
 	TidyNode node;

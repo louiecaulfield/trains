@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include "include/dbg.h"
 #include "curl_tidy.h"
-#include "html.h"
 
 #define _CURLOPT(setting, value) \
 		curl_easy_setopt(curl_hdl, CURLOPT_##setting, value);

@@ -26,12 +26,15 @@ int main(int argc, char *argv[])
 	struct train_list_t *trains = NULL;
 	size_t n, ntrains;
 
+	//Parse cmdline
+	if(argc != 2)
+		printf(" usage: %s <db>", argv[0]);
 	//Set up Curl 
 	check(curl_tidy_init(&curl_hdl)==0,"Failed to initialise curl");
 	debug("curl_hdl %p", curl_hdl);
 
 	//Set up database and get names
-	res = database_init(&db_hdl, "/Users/jasper/dev/c/sncf/test.db");
+	res = database_init(&db_hdl, argv[1]);
 	check(res==0, "Failed to open database"); 
 	res = station_find(db_hdl, "Brussels Midi", &stn_departure, &stn_dep_id);
 	check(res==0, "Failed to get departure station name");

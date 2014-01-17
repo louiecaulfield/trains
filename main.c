@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 	free(link);
 error:
 	//Dump last download (in case of error)
-	tidySaveFile(tdoc, "dumpfile-exit.html");
+	if(tdoc) tidySaveFile(tdoc, "dumpfile-exit.html");
 	tidyRelease(tdoc);
 	curl_tidy_cleanup(curl_hdl);
 	return 0;

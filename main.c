@@ -1,11 +1,13 @@
 #include <stdlib.h>
 #include <string.h>
+#include <sqlite3.h>
 #include <curl/curl.h>
 #include <tidy/tidy.h>
 #include <tidy/buffio.h>
 #include "trains.h"
 #include "include/dbg.h"
 #include "html.h"
+#include "database.h"
 #include "curl_tidy.h"
 #include "sncf.h"
 
@@ -15,17 +17,25 @@ int main(int argc, char *argv[])
 {
 	int res, consecutive_success = 0;
 	CURL *curl_hdl = NULL;
+	sqlite3 *db_hdl = NULL;
  	TidyDoc tdoc = NULL;
 	char *link, *new_link;
 	struct tm time_dep;
-	//FIXME: get these numbers dynamically 
-	int stn_departure =  91-5, stn_arrival = 381-5;
+	char *stn_departure, *stn_arrival;
 	struct train_t *trains = NULL;
 	size_t ntrains;
 
-	//Set up some stuff
+	//Set up Curl 
 	check(curl_tidy_init(&curl_hdl)==0,"Failed to initialise curl");
 	debug("curl_hdl %p", curl_hdl);
+
+	//Set up database and get names
+	res = database_init(&db_hdl, "test.db");
+	check(res==0, "Failed to open database"); 
+	res = station_get_name(db_hdl, "Brussels Midi", &stn_departure);
+	check(res==0, "Failed to get departure station name");
+	res = station_get_name(db_hdl, "Lyon", &stn_arrival);
+	check(res==0, "Failed to get arrival station name");
 
 	//Send search query 
 	time_dep.tm_sec = time_dep.tm_min = 0;
@@ -90,5 +100,6 @@ error:
 	if(tdoc) tidySaveFile(tdoc, "dumpfile-exit.html");
 	tidyRelease(tdoc);
 	curl_tidy_cleanup(curl_hdl);
+	database_cleanup(db_hdl);
 	return 0;
 }

@@ -13,13 +13,13 @@ static char * postfields_default;
 
 int construct_postfields(CURL *curl_hdl, char ** postfields, 
 	struct tm *time_departure, 
-	int stn_departure, int stn_arrival)
+	const char *stn_departure, const char *stn_arrival)
 {
 	int res;
-	char *str_stn_departure, *str_stn_arrival, out_date[16], out_time[4];
+	char *stn_departure_esc, *stn_arrival_esc, out_date[16], out_time[4];
 
-	str_stn_departure = curl_easy_escape(curl_hdl, sncf_stations[stn_departure], 0);
-	str_stn_arrival = curl_easy_escape(curl_hdl, sncf_stations[stn_arrival], 0);
+	stn_departure_esc = curl_easy_escape(curl_hdl, stn_departure, 0);
+	stn_arrival_esc = curl_easy_escape(curl_hdl, stn_arrival, 0);
 
 	strftime(out_date, 16, "%d%%2F%m%%2F%Y", time_departure);	
 	strftime(out_time, 4, "%H", time_departure);	
@@ -27,13 +27,13 @@ int construct_postfields(CURL *curl_hdl, char ** postfields,
 
 	res = asprintf(postfields,
 		"%s%s%s%s%s%s%s%s%s%s",
-		"ORIGIN_CITY=", str_stn_departure,
-		"&DESTINATION_CITY=", str_stn_arrival,
+		"ORIGIN_CITY=", stn_departure_esc,
+		"&DESTINATION_CITY=", stn_arrival_esc,
 		"&OUTWARD_DATE=", out_date, 
 		"&OUTWARD_TIME=", out_time, 
 		"&", postfields_default);
-	curl_free(str_stn_departure);
-	curl_free(str_stn_arrival);
+	curl_free(stn_departure_esc);
+	curl_free(stn_arrival_esc);
 	check(res>=0,"Failed to construct postfields");
 	return 0;
 error:
@@ -46,7 +46,7 @@ error:
  */
 int sncf_post_form(CURL *curl_hdl, TidyDoc *tdoc, char ** link, 
 	struct tm *time_departure, 
-	int stn_departure, int stn_arrival)
+	char *stn_departure, char *stn_arrival)
 {
 	char *postfields = NULL;
 	int res;

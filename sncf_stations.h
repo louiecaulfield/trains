@@ -381,6 +381,7 @@ char * sncf_stations[] = {
 	"Paris (all stations - FR)",
 	"Paris Marne-la-Vallée Chessy (200m from Disneyland Paris - TGV and Ouigo station - FR)",
 	"Paris Roissy Charles de Gaulle Airport (TGV station - CDG 2 - 25km from Paris - FR)",
+	"Paris Nord",
 	"Pau (FR)",
 	"Paimpol (FR)",
 	"Padua (IT)",

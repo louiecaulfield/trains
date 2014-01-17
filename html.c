@@ -151,7 +151,7 @@ error:
 }
 
 struct node_list * findNodes(fn_test node_test, TidyNode node, 
-		const char *str_test, struct node_list *node_list_tail)
+		const char *str_test, struct node_list **node_list_tail)
 {
 	TidyNode child;
 	struct node_list *node_list_head = NULL, *r;
@@ -162,11 +162,11 @@ struct node_list * findNodes(fn_test node_test, TidyNode node,
 			check_mem(node_list_match);	
 			node_list_match->node = child;
 			node_list_match->next = NULL;
-			if(node_list_tail) {
-				node_list_tail->next = node_list_match;
-				node_list_tail = node_list_tail->next;
+			if(*node_list_tail) {
+				(*node_list_tail)->next = node_list_match;
+				(*node_list_tail) = (*node_list_tail)->next;
 			} else { //first match ever
-				node_list_head = node_list_tail = node_list_match;
+				node_list_head = *node_list_tail = node_list_match;
 			}
 		}
 		//Iterate over this child's children
@@ -181,14 +181,60 @@ error:
 
 int findNodesByName (struct node_list ** list, TidyNode node, const char * name)
 {
-	*list = findNodes(&testNodeName, node, name, NULL);
+	struct node_list *head, *tail = NULL;
+	head = findNodes(&testNodeName, node, name, &tail);
+	if(list)
+		*list = head;
+	else
+		freeNodeList(&head);
 	return countNodeList(*list);
 }
 
 int findNodesByClass(struct node_list ** list, TidyNode node, const char * class)
 {
-	*list = findNodes(&testNodeClass, node, class, NULL);
+	struct node_list *head, *tail = NULL;
+	head = findNodes(&testNodeClass, node, class, &tail);
+	if(list)
+		*list = head;
+	else
+		freeNodeList(&head);
 	return countNodeList(*list);
+}
+
+TidyNode findNodeNByName(TidyNode root, int n, const char *name)
+{
+	int res;
+	struct node_list *nodes;
+	TidyNode node;
+	res = findNodesByName(&nodes, root, name);
+	node = getNodeN(nodes, n); 
+	freeNodeList(&nodes);
+	return node;
+}	
+
+TidyNode findNodeNByClass(TidyNode root, int n, const char *class)
+{
+	int res;
+	struct node_list *nodes;
+	TidyNode node;
+	res = findNodesByClass(&nodes, root, class);
+	node = getNodeN(nodes, n); 
+	freeNodeList(&nodes);
+	return node;
+}	
+
+
+TidyNode getNodeN(struct node_list *nodes, int n)
+{
+	int i;
+	struct node_list *node = nodes;
+	for(i = 1; i < n; i++) {
+		if(node->next)
+			node = node->next;		
+		else
+			return NULL;
+	}
+	return node?node->node:NULL;
 }
 
 int countNodeList(struct node_list * list)

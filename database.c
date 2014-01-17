@@ -32,8 +32,8 @@ int station_find(sqlite3 *db_hdl, const char *query, char **name, int* id)
 	asprintf(&sql_query,
 		"SELECT stationid, name FROM stations WHERE name LIKE '%s%%' LIMIT 1;",
 		query);
-	debug("Query = [%s]", sql_query);
 	res = sqlite3_prepare_v2(db_hdl, sql_query, -1, &sql_stmt, NULL);
+	debug("qry =[%s]", sql_query);
 	free(sql_query);	
 	check(res==SQLITE_OK, "failed to prepare sql statement (%s)", sqlite3_errmsg(db_hdl));	
 
@@ -41,7 +41,6 @@ int station_find(sqlite3 *db_hdl, const char *query, char **name, int* id)
 		_id = sqlite3_column_int(sql_stmt, 0);
 		free(_name);
 		_name = strdup((const char*)sqlite3_column_text(sql_stmt, 1));
-		debug("Name is now %s", _name);
 	} 
 	debug("found station [id=%d, name=%s]", _id, _name);	
 error:
@@ -65,7 +64,6 @@ size_t train_store(sqlite3 *db_hdl, struct train_t *trains, size_t ntrains)
 		"(stn_dep, stn_arr, time_dep, time_arr, legs, price, operator, time_query) "
 		"VALUES(?, ?, ?, ?, ?, ?, ?, ?)");
 		
-	debug("Query = [%s]", sql_query);
 	res = sqlite3_prepare_v2(db_hdl, sql_query, -1, &sql_stmt, NULL);
 	free(sql_query);	
 	check(res==SQLITE_OK, "failed to prepare sql statement: %s", 

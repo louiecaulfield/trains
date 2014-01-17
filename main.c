@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
 	char *link, *new_link;
 	struct tm time_dep;
 	char *stn_departure, *stn_arrival;
+	int stn_dep_id, stn_arr_id;
 	struct train_t *trains = NULL;
 	size_t ntrains, n;
 
@@ -32,9 +33,9 @@ int main(int argc, char *argv[])
 	//Set up database and get names
 	res = database_init(&db_hdl, "/Users/jasper/dev/c/sncf/test.db");
 	check(res==0, "Failed to open database"); 
-	res = station_find(db_hdl, "Brussels Midi", &stn_departure, NULL);
+	res = station_find(db_hdl, "Brussels Midi", &stn_departure, &stn_dep_id);
 	check(res==0, "Failed to get departure station name");
-	res = station_find(db_hdl, "Lyon", &stn_arrival, NULL);
+	res = station_find(db_hdl, "Paris", &stn_arrival, &stn_arr_id);
 	check(res==0, "Failed to get arrival station name");
 
 	//Send search query 
@@ -86,7 +87,7 @@ int main(int argc, char *argv[])
 		}
 
 		free_trains(&trains, &ntrains);
-		ntrains = sncf_parse_results(db_hdl, tdoc, &trains);
+		ntrains = sncf_parse_results(db_hdl, tdoc, &trains, stn_dep_id, stn_arr_id);
 		check(ntrains, "No trains found");
 		consecutive_success++; 
 		print_trains(trains, ntrains, 0);
@@ -95,17 +96,27 @@ int main(int argc, char *argv[])
 			log_info("Only stored %lu out of %lu trains, aborting", n, ntrains);
 			goto error;
 		}
-		debug("Stored %d trains", res);
+		debug("Stored %lu trains", n);
 
 		free(link);
 		link = new_link;
 	}
 	free(link);
-error:
-	//Dump last download (in case of error)
-	if(tdoc) tidySaveFile(tdoc, "dumpfile-exit.html");
-	tidyRelease(tdoc);
+
+	if(tdoc) {
+		tidySaveFile(tdoc, "dumpfile-exit.html");
+		tidyRelease(tdoc);
+	}
 	curl_tidy_cleanup(curl_hdl);
 	database_cleanup(db_hdl);
 	return 0;
+
+error:
+	if(tdoc) {
+		tidySaveFile(tdoc, "dumpfile-exit.html");
+		tidyRelease(tdoc);
+	}
+	curl_tidy_cleanup(curl_hdl);
+	database_cleanup(db_hdl);
+	return -1;
 }

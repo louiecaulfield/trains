@@ -31,10 +31,13 @@ const char * getAttributeValue(TidyNode node, const char * attribute_name);
 TidyNode findNodeById(TidyNode node, const char * id);
 
 struct node_list * findNodes(fn_test node_test, TidyNode node,
-		const char *str_test, struct node_list *node_list_tail);
+		const char *str_test, struct node_list **node_list_tail);
 int findNodesByName (struct node_list ** list, TidyNode node, const char * name);
 int findNodesByClass(struct node_list ** list, TidyNode node, const char * class);
 
+TidyNode findNodeNByName(TidyNode root, int n, const char *name);
+TidyNode findNodeNByClass(TidyNode root, int n, const char *class);
+TidyNode getNodeN(struct node_list *nodes, int n);
 /* 
  * struct node_list helpers
  */

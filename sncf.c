@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sqlite3.h>
 #include "include/dbg.h"
+#include "include/util.h"
 #include "sncf.h"
 #include "sncf_stations.h"
 #include "html.h"
@@ -99,175 +100,156 @@ error:
 	return -1;
 }
 
-size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_t **ret)
+size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_t **ret, int stn_departure_id, int stn_arrival_id)
 {
-	TidyNode summary, node;
-	struct node_list *nodes = NULL, *node_cur = NULL;
-	struct node_list *cells = NULL, *cell_cur = NULL;
+	TidyNode node, n_hour, n_duration,
+		n_station, n_transporter, n_train_nr;
+	struct node_list *n_trains = NULL, *n_train_cur;
+	struct node_list *nodes, *node_cur;
 	struct train_t *trains = NULL;
-	char *data = NULL;
-	char *stn_departure = NULL, *stn_arrival = NULL;
-	int stn_departure_id, stn_arrival_id;
-	char *cell_text = NULL;
-	const char *header_attr = NULL;
-	unsigned int day, month, year;
-	struct tm tm_current_day;
-	int res, i = 0;
 	size_t ntrains = 0;
-	int day_offset, day_before_encountered;
 
-	/*
-	 * Get departure and arrival from breadcrumb
-	 */
-	node = findNodeById(tidyGetRoot(tdoc), "breadcrumb");
-	check(node, "Breadcrumb node not found");
-	res = findNodesByClass(&nodes, node, "actual");
-	if(res > 1) log_warn("More than 1 nodes found where only 1 expected");
+	const char *data = NULL;
+	char str_debug[1024] = "";
+	char *node_text = NULL;
 
-	getNodeText(tdoc, nodes->node, &data);
-	stn_departure = data + strlen("Your reservation for ");
-	stn_departure = strndup(stn_departure, strstr(stn_departure," - ") - stn_departure);
-	stn_arrival = strstr(data, " - ") + strlen(" - ");
-	stn_arrival = strndup(stn_arrival, strstr(stn_arrival,"\n") - stn_arrival);
-	debug("DEP = %s - ARR = %s", stn_departure, stn_arrival);
 
-	freeNodeList(&nodes);
-	free(data);
-
-	/*
-	 * Find the node containing the summary table
-	 */
-	summary = findNodeById(tidyGetRoot(tdoc), "block-bestpricesummary");
-	check(summary, "No price summary node found");
+	int res, i = 0;
+	struct tm tm_outward_date, tm_departure, tm_arrival;
+	int dur_h, dur_m;
+	int stn_dep_id, stn_arr_id;
+	int train_nr;
+	float price = 10000;
+	char *operator;
 
 	/*
 	 * Get the date of the first column from the first <h2>'s <strong>
 	 */
-	findNodesByName(&nodes, summary, "h2");
-	check(nodes, "No <h2> found");
-	node = nodes->node; 
-	freeNodeList(&nodes); 
+	node = findNodeById(tidyGetRoot(tdoc), "OUTWARD_DATE");
+	check(node, "No node with the outward date found");
+	data = getAttributeValue(node, "value");
+	strptime(data, "%d/%m/%Y", &tm_outward_date);
+	tm_outward_date.tm_hour = tm_outward_date.tm_min = tm_outward_date.tm_sec = 0;
 
-	findNodesByName(&nodes, node, "strong");
-	check(nodes, "No <strong> found");
-	getNodeText(tdoc, nodes->node, &data);
-	freeNodeList(&nodes);	
+	strftime(str_debug, 1024, "%D %T", &tm_outward_date);
+	debug("Outward date found : %s", str_debug);
 
-	check_mem(data);
-	res = sscanf(data + (strstr(data,"Outward")?
-				strlen("Outward journey between "):
-				strlen("Leaving on ")), "%02u/%02u/%4u",
-				&day, &month, &year);
+	node = findNodeById(tidyGetRoot(tdoc), "proposals");
+	check(node, "No train proposals found");
+	ntrains = findNodesByClass(&n_trains, node, "train_info");
+	debug("found %lu trains to parse", ntrains);		
 
-	tm_current_day.tm_hour = tm_current_day.tm_min = tm_current_day.tm_sec = 0;
-	tm_current_day.tm_mday = day;
-	tm_current_day.tm_mon = month - 1;
-	tm_current_day.tm_year = year - 1900;	
-	tm_current_day.tm_isdst = -1; //Have mktime figure DST out
-	free(data);
-
-	/*
-	 * Get all rows in the table
-	 */
-	findNodesByName(&nodes, summary, "tbody");
-	check(nodes, "No <tbody> found");
-	node = nodes->node; //We only care about the first find
-	freeNodeList(&nodes);
-
-	/*
-	 * Go through all <tr> and parse their <td> into train_t
-	 */
-	res = findNodesByName(&nodes, node, "tr");
-	check(res == 4, "didn't find required 4 <tr> nodes");
-	for(node_cur = nodes; node_cur; node_cur = node_cur->next) {
-		ntrains = findNodesByName(&cells, node_cur->node, "td");
-		debug("Found %lu cells in row classed %s", 
-			ntrains, getAttributeValue(node_cur->node, "class"));
-		if(!trains) {
-			debug("allocating trains");
-			trains = calloc(ntrains, sizeof(struct train_t));	
-			check_mem(trains);
-			//initialise dept & arr stn as well
-			station_find(db_hdl, stn_departure, NULL, &stn_departure_id);
-			station_find(db_hdl, stn_arrival, NULL, &stn_arrival_id);
-			for(size_t i = 0; i < ntrains; i++) {
-				trains[i].stn_departure = stn_departure_id; 
-				trains[i].stn_arrival = stn_arrival_id; 
-			}
+	//price proposals
+	trains = calloc(ntrains, sizeof(struct train_t));
+	for(n_train_cur = n_trains; n_train_cur; n_train_cur = n_train_cur->next) {
+		price = 10000;
+		stn_dep_id = stn_arr_id = 0;
+		//Check if we're dealing with a direct train
+		res = findNodesByClass(&nodes, n_train_cur->node, "travel_resume_detail");
+		check(res==1,"found no or more than 1 travel_resume_detail node");
+		if(!testNodeClass(nodes->node, "direct")) {
+			log_info("Ignoring node, indirect train");	
+			continue;
 		}
+		freeNodeList(&nodes);
 
-		i = 0;
-		day_before_encountered = 0;
-		for(cell_cur = cells; cell_cur; cell_cur = cell_cur->next) {
-			//Get <td> (and children) contents
-			getNodeText(tdoc, cell_cur->node, &cell_text);
-			check_mem(cell_text);
+		tm_departure = tm_outward_date;
+		//Get the day
+		node = findNodeNByClass(n_train_cur->node, 1, "day-info");
+		check(node, "node day_info not found");
+		getNodeText(tdoc, node, &node_text);
+		strptime(strstr(node_text, ";") + 1, "%e&nbsp;%b", &tm_departure);
+		free(node_text);
+		
+		//Departure hour
+		n_hour = findNodeNByClass(n_train_cur->node, 1, "hour");
+		check(n_hour, "1st hour node (departure) not found");
+		node = findNodeNByName(n_hour, 2, "p");
+		getNodeText(tdoc, node, &node_text);
+		strptime(node_text, "%Hh%M", &tm_departure);
+		free(node_text);
 
-			//add the cell to the appropriate field
-			if(testNodeClass(node_cur->node, "departureTime")) {
-				struct tm tm_departure = tm_current_day;
+		//Departure station 
+		n_station = findNodeNByClass(n_train_cur->node, 1, "station");
+		check(n_station, "Departure station node not found");
+		node = findNodeNByName(n_station, 2, "p");
+		getNodeText(tdoc, node, &node_text);
+		station_find(db_hdl, strtrim(node_text), NULL, &stn_dep_id);
+		debug("Departure station = [%s](id=%d)", node_text, stn_dep_id);
+		check(stn_dep_id, "Couldn't find departure station id");
+		free(node_text);
 
-				//Test for day before (db) current day (cd) or day after (da)
-				header_attr = getAttributeValue(cell_cur->node, "headers");
-				if(strstr(header_attr, "db")) {
-					day_before_encountered = 1;
-					day_offset = 0;
-				} else if(strstr(header_attr, "cd")) {
-					day_offset = day_before_encountered;
-				} else if(strstr(header_attr, "da")) {
-					day_offset = 1 + day_before_encountered;
-				} else {
-					log_err("Didn't find day specified in <td header>");
-					goto error;
-				}
+		//Arrival time 
+		tm_arrival = tm_departure;
+		n_duration = findNodeNByClass(n_train_cur->node, 1, "digital-fusion-duration_label");
+		check(n_duration, "2nd hour node (departure) not found");
+		getNodeText(tdoc, n_duration, &node_text);
+		debug("arr time = %s", strtrim(node_text));
+		sscanf(strstr(node_text, ";") + 1, "%02dh%02d", &dur_h, &dur_m);
+		debug("duration = %dh%d", dur_h, dur_m);
+		tm_arrival.tm_hour += dur_h;
+		tm_arrival.tm_min += dur_m;
+		free(node_text);
 
-				res = sscanf(cell_text, "%02dh%02d", 
-					&tm_departure.tm_hour,
-					&tm_departure.tm_min);		
-				tm_departure.tm_mday += day_offset;
-				trains[i].time_departure = mktime(&tm_departure);
-				check(res == 2, "failed to assign time");
-			} else if(testNodeClass(node_cur->node, "price")) {
-				float price;
-				res = sscanf(cell_text, "%f", &price);
-				check(res == 1, "too many prices found");	
-				trains[i].price = price;
-			} else if(testNodeClass(node_cur->node, "duration")) {
-				struct tm tm_arrival;
-				int dur_hour, dur_min;
-				//departureTime should be set already
-				gmtime_r(&trains[i].time_departure, &tm_arrival);
-				res = sscanf(cell_text, "%02dh%02d", 
-					&dur_hour,
-					&dur_min);	
-				check(res == 2, "Failed to parse duration");
-				tm_arrival.tm_hour += dur_hour;
-				tm_arrival.tm_min += dur_min;
-				trains[i].time_arrival = timegm(&tm_arrival);
-			} else if(testNodeClass(node_cur->node, "transporteur")) {
-				//Cut off operator at first \n
-				trains[i].operator = strndup(cell_text, 
-					strstr(cell_text, "\n") - cell_text);
-			} else {
-				log_warn("Unhandled cell data");
-			}
-			free(cell_text);
-			cell_text = NULL;
-			i++;
+		//Arrival station 
+		n_station = findNodeNByClass(n_train_cur->node, 2, "station");
+		check(n_station, "Arrival station node not found");
+		node = findNodeNByName(n_station, 2, "p");
+		getNodeText(tdoc, node, &node_text);
+		station_find(db_hdl, strtrim(node_text), NULL, &stn_arr_id);
+		debug("Arrival station = [%s](id=%d)", strtrim(node_text), stn_arr_id);
+		check(stn_arr_id, "Couldn't find arrival station id");
+		free(node_text);
+
+
+		//transporter 
+		n_transporter = findNodeNByClass(n_train_cur->node, 1, "transporteur-txt");
+		check(n_transporter, "transporter node not found");
+		getNodeText(tdoc, n_transporter, &node_text);
+		operator = strdup(strstr(strtrim(node_text), "\n") + 1); 
+		debug("transporter = %s", operator) ;
+		free(node_text);
+
+		//train number 
+		n_train_nr = findNodeNByClass(n_train_cur->node, 1, "train_number");
+		check(n_train_nr, "train_number node not found");
+		node = findNodeNByName(n_train_nr, 2, "p");
+		getNodeText(tdoc, node, &node_text);
+		sscanf(node_text, "%d", &train_nr);
+		debug("train_number = %d", train_nr);
+		free(node_text);
+
+		//Get all prices and save the cheapest
+		res = findNodesByClass(&nodes, n_train_cur->node, "price");
+		debug("Found %d prices", res);
+		for(node_cur=nodes; node_cur; node_cur=node_cur->next) {
+			int integer, decimal;
+			float new_price;
+			getNodeText(tdoc, node_cur->node, &node_text);
+			res = sscanf(node_text, "%d\n.%d", &integer, &decimal);
+			new_price = integer + (float)decimal/100.0;
+			if (new_price < price)
+				price = new_price;
+			free(node_text);
 		}
-		freeNodeList(&cells);
+		freeNodeList(&nodes);
+
+		trains[i].stn_departure = stn_dep_id;	
+		trains[i].stn_arrival = stn_arr_id;	
+		trains[i].time_departure = mktime(&tm_departure) ;	
+		trains[i].time_arrival = mktime(&tm_arrival) ;	
+		trains[i].operator = strdup(operator);	
+		trains[i].price = price;
+		trains[i].number = train_nr;
+		i++;
 	}
-	freeNodeList(&nodes);
-	goto success;
-error:
-	free_trains(&trains, &ntrains);	
-	free(cell_text);
-	freeNodeList(&cells);
-	freeNodeList(&nodes);
-success:
-	free(stn_departure);
-	free(stn_arrival);
+	freeNodeList(&n_trains);
+
 	*ret = trains;
+goto success;
+error:
+	free_trains(&trains, &ntrains);
+success:
 	debug("returning from parse");
 	return ntrains;
 

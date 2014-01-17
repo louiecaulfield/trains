@@ -9,6 +9,7 @@ struct train_t {
 	time_t time_arrival;
 	char * operator;	
 	float price;
+	int number;
 };
 
 void print_trains(struct train_t *trains, size_t n, int header);

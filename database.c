@@ -52,10 +52,11 @@ error:
 	return _name?0:-1;
 }
 
-size_t train_store(sqlite3 *db_hdl, struct train_t *trains, size_t ntrains)
+size_t train_store(sqlite3 *db_hdl, struct train_list_t *trains)
 {
+	size_t n = 0;
 	int res;
-	size_t i = 0;
+	struct train_list_t *train;
 	sqlite3_stmt *sql_stmt = NULL;
 	char *sql_query;
 	time_t current_time;
@@ -71,22 +72,23 @@ size_t train_store(sqlite3 *db_hdl, struct train_t *trains, size_t ntrains)
 	check(res==SQLITE_OK, "failed to prepare sql statement: %s", 
 			sqlite3_errmsg(db_hdl));	
 
-	for(i = 0; i < ntrains; i++) {
-		sqlite3_bind_int(sql_stmt, 1, trains[i].stn_departure);
-		sqlite3_bind_int(sql_stmt, 2, trains[i].stn_arrival);
-		sqlite3_bind_int64(sql_stmt, 3, trains[i].time_departure); 
-		sqlite3_bind_int64(sql_stmt, 4, trains[i].time_arrival); 
+	for(train = trains; train; train = train->next) {
+		sqlite3_bind_int(sql_stmt, 1, train->train.stn_departure);
+		sqlite3_bind_int(sql_stmt, 2, train->train.stn_arrival);
+		sqlite3_bind_int64(sql_stmt, 3, train->train.time_departure); 
+		sqlite3_bind_int64(sql_stmt, 4, train->train.time_arrival); 
 		sqlite3_bind_int(sql_stmt, 5, 1); //Legs 
-		sqlite3_bind_double(sql_stmt, 6, trains[i].price); 
-		sqlite3_bind_text(sql_stmt, 7, trains[i].operator, -1, NULL); 
+		sqlite3_bind_double(sql_stmt, 6, train->train.price); 
+		sqlite3_bind_text(sql_stmt, 7, train->train.operator, -1, NULL); 
 		sqlite3_bind_int64(sql_stmt, 8,  current_time); 
 
 		res = sqlite3_step(sql_stmt);
 		check(res==SQLITE_DONE, "failed to insert row (%s)", 
 			sqlite3_errmsg(db_hdl));
+		n++;
 		sqlite3_reset(sql_stmt);
 	}
 error:
 	sqlite3_finalize(sql_stmt);
-	return i;
+	return n;
 }

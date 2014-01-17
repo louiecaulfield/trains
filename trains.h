@@ -12,7 +12,12 @@ struct train_t {
 	int number;
 };
 
-void print_trains(struct train_t *trains, size_t n, int header);
-void free_trains(struct train_t **trains, size_t *ntrains);
+struct train_list_t {
+	struct train_t train;
+	struct train_list_t *next;
+};
 
+void print_trains(struct train_list_t *trains, int header);
+void free_trains(struct train_list_t *trains);
+struct train_list_t *get_last_train(struct train_list_t *trains);
 #endif

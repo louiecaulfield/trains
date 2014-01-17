@@ -100,14 +100,14 @@ error:
 	return -1;
 }
 
-size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_t **ret, int stn_departure_id, int stn_arrival_id)
+size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **ret, int stn_departure_id, int stn_arrival_id)
 {
 	TidyNode node, n_hour, n_duration,
 		n_station, n_transporter, n_train_nr;
 	struct node_list *n_trains = NULL, *n_train_cur;
 	struct node_list *nodes, *node_cur;
-	struct train_t *trains = NULL;
-	size_t ntrains = 0;
+	struct train_list_t *train = NULL, *trains_head = NULL, *train_new;
+	size_t n = 0;
 
 	const char *data = NULL;
 	char str_debug[1024] = "";
@@ -136,11 +136,10 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_t **ret, i
 
 	node = findNodeById(tidyGetRoot(tdoc), "proposals");
 	check(node, "No train proposals found");
-	ntrains = findNodesByClass(&n_trains, node, "train_info");
-	debug("found %lu trains to parse", ntrains);		
+	n = findNodesByClass(&n_trains, node, "train_info");
+	debug("found %lu trains to parse", n);		
 
 	//price proposals
-	trains = calloc(ntrains, sizeof(struct train_t));
 	for(n_train_cur = n_trains; n_train_cur; n_train_cur = n_train_cur->next) {
 		price = 10000;
 		stn_dep_id = stn_arr_id = 0;
@@ -149,9 +148,21 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_t **ret, i
 		check(res==1,"found no or more than 1 travel_resume_detail node");
 		if(!testNodeClass(nodes->node, "direct")) {
 			log_info("Ignoring node, indirect train");	
+			n--;
 			continue;
 		}
 		freeNodeList(&nodes);
+
+		//Ok, a good train, allocate memory
+		train_new = malloc(sizeof(struct train_list_t));
+		check_mem(train_new);
+		train_new->next = NULL;
+		if(train) {
+			train->next = train_new;
+			train = train_new;
+		} else { //first assignment
+			trains_head = train = train_new;		
+		}
 
 		tm_departure = tm_outward_date;
 		//Get the day
@@ -234,24 +245,25 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_t **ret, i
 		}
 		freeNodeList(&nodes);
 
-		trains[i].stn_departure = stn_dep_id;	
-		trains[i].stn_arrival = stn_arr_id;	
-		trains[i].time_departure = mktime(&tm_departure) ;	
-		trains[i].time_arrival = mktime(&tm_arrival) ;	
-		trains[i].operator = operator;	
-		trains[i].price = price;
-		trains[i].number = train_nr;
+		train->train.stn_departure = stn_dep_id;	
+		train->train.stn_arrival = stn_arr_id;	
+		train->train.time_departure = mktime(&tm_departure) ;	
+		train->train.time_arrival = mktime(&tm_arrival) ;	
+		train->train.operator = operator;	
+		train->train.price = price;
+		train->train.number = train_nr;
 		i++;
 	}
 	freeNodeList(&n_trains);
 
-	*ret = trains;
 goto success;
 error:
-	free_trains(&trains, &ntrains);
+	free_trains(trains_head);
+	trains_head = NULL;
 success:
+	*ret = trains_head;
 	debug("returning from parse");
-	return ntrains;
+	return n;
 
 }
 

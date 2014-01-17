@@ -21,10 +21,10 @@ int main(int argc, char *argv[])
  	TidyDoc tdoc = NULL;
 	char *link, *new_link;
 	struct tm time_dep;
-	char *stn_departure, *stn_arrival;
+	char *stn_departure = NULL, *stn_arrival = NULL;
 	int stn_dep_id, stn_arr_id;
-	struct train_t *trains = NULL;
-	size_t ntrains, n;
+	struct train_list_t *trains = NULL;
+	size_t n, ntrains;
 
 	//Set up Curl 
 	check(curl_tidy_init(&curl_hdl)==0,"Failed to initialise curl");
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 	log_info("Initialized (%d) - link = %s", res, link);
 
 	//Fetch, parse, print
-	for(int i = 0; i < 1000; i++) {
+	for(int i = 0; i < 3000; i++) {
 		debug("Next link %s", link);
 		tidyRelease(tdoc);
 		res = curl_tidy_get(curl_hdl, link, &tdoc);	
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 			log_warn("Next results page is the same as the current one (%d successes)", consecutive_success);
 			check(consecutive_success > 2,
 				"Only 2 success before loop, aborting");
-			localtime_r(&trains[ntrains-1].time_departure, &time_dep);
+			localtime_r(&get_last_train(trains)->train.time_departure, &time_dep);
 
 			consecutive_success = 0;
 			tidyRelease(tdoc);
@@ -86,17 +86,18 @@ int main(int argc, char *argv[])
 			continue;
 		}
 
-		free_trains(&trains, &ntrains);
+		free_trains(trains);
+		trains = NULL;
 		ntrains = sncf_parse_results(db_hdl, tdoc, &trains, stn_dep_id, stn_arr_id);
-		check(ntrains, "No trains found");
+		check(n, "No trains found");
 		consecutive_success++; 
-		print_trains(trains, ntrains, 0);
-		n = train_store(db_hdl, trains, ntrains);	
-		if(n != ntrains) {
-			log_info("Only stored %lu out of %lu trains, aborting", n, ntrains);
+		print_trains(trains, 0);
+		n = train_store(db_hdl, trains);	
+		if(n!=ntrains) {
+			log_info("only stored %lu out of %lu trains, aborting", n, ntrains);
 			goto error;
 		}
-		debug("Stored %lu trains", n);
+		debug("Stored all trains", n);
 
 		free(link);
 		link = new_link;

@@ -1,7 +1,7 @@
 #include <curl/curl.h>
 #include <stdio.h>
 #include "include/dbg.h"
-#include "curl_http.h"
+#include "curl_tidy.h"
 #include "html.h"
 
 #define _CURLOPT(setting, value) \
@@ -15,7 +15,7 @@ size_t write_cb(char *in, size_t size, size_t nmemb, TidyBuffer *out)
 	return(r);
 }
 
-int curl_http_init(CURL **curl_hdl_ref)
+int curl_tidy_init(CURL **curl_hdl_ref)
 {
 	CURL *curl_hdl;
 	*curl_hdl_ref = curl_easy_init();
@@ -35,12 +35,12 @@ error:
 	return -1;
 }
 
-void curl_http_cleanup(CURL *curl_hdl)
+void curl_tidy_cleanup(CURL *curl_hdl)
 {
 	curl_easy_cleanup(curl_hdl);
 }
 
-int parse_docbuf(TidyDoc *tdoc, TidyBuffer docbuf)
+static int curl_tidy_parse(TidyDoc *tdoc, TidyBuffer docbuf)
 {
 	TidyBuffer tidy_errbuf = {0};
 	*tdoc = tidyCreate();
@@ -60,7 +60,8 @@ error:
 	if(&tidy_errbuf) tidyBufFree(&tidy_errbuf);
 	return -1;
 }
-int read_html(char *filename, TidyDoc *tdoc)
+
+int curl_tidy_read(char *filename, TidyDoc *tdoc)
 {
 	FILE *file;
 	char *file_contents;
@@ -83,7 +84,7 @@ int read_html(char *filename, TidyDoc *tdoc)
 	fread (file_contents, 1, file_length, file);	
 
 	tidyBufAttach(&docbuf, (byte *)file_contents, strlen(file_contents)+1);
-	parse_docbuf(tdoc, docbuf);
+	curl_tidy_parse(tdoc, docbuf);
 
 	tidyBufFree(&docbuf);
 	return 0;
@@ -91,7 +92,8 @@ error:
 	tidyBufFree(&docbuf);
 	return -1;
 }
-int fetch_html(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
+
+int curl_tidy_fetch(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
 {
 	debug("Fetching %s", url);
 
@@ -104,7 +106,7 @@ int fetch_html(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
 	check(curl_easy_perform(curl_hdl)==0, "Curl request failed");
 	debug("Fetched the page");
 
-	parse_docbuf(tdoc, docbuf);	
+	curl_tidy_parse(tdoc, docbuf);	
 
 	tidyBufFree(&docbuf);
 	return 0;
@@ -113,22 +115,23 @@ error:
 	return -1;
 }
 
-int fetch_html_get(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
+int curl_tidy_get(CURL *curl_hdl, const char * url, TidyDoc *tdoc)
 {
 	check(curl_hdl, "Curl not initialised!");
+
 	_CURLOPT(HTTPGET,1);
-	return fetch_html(curl_hdl, url, tdoc);
+	return curl_tidy_fetch(curl_hdl, url, tdoc);
 error:
 	return -1;
 }
 
-int fetch_html_post(CURL *curl_hdl, const char * url, char* postfields, TidyDoc *tdoc)
+int curl_tidy_post(CURL *curl_hdl, const char * url, char* postfields, TidyDoc *tdoc)
 { 
 	int res;
 	check(curl_hdl, "Curl not initialised!");
 	_CURLOPT(HTTPPOST, 1);
 	_CURLOPT(POSTFIELDS, postfields);
-	res = fetch_html(curl_hdl, url, tdoc);
+	res = curl_tidy_fetch(curl_hdl, url, tdoc);
 	return res; 
 error:
 	return -1;

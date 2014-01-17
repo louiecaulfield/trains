@@ -5,7 +5,7 @@
 #include <tidy/buffio.h>
 #include "include/dbg.h"
 #include "html.h"
-#include "curl_http.h"
+#include "curl_tidy.h"
 #include "sncf.h"
 
 #define TMP_FN_TEMPLATE "schedrip-XXXXXX"
@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 	size_t ntrains;
 
 	//Set up some stuff
-	check(curl_http_init(&curl_hdl)==0,"Failed to initialise curl");
+	check(curl_tidy_init(&curl_hdl)==0,"Failed to initialise curl");
 	debug("curl_hdl %p", curl_hdl);
 
 	//Send search query 
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
 	for(int i = 0; i < 1000; i++) {
 		debug("Next link %s", link);
 		tidyRelease(tdoc);
-		res = fetch_html_get(curl_hdl, link, &tdoc);	
+		res = curl_tidy_get(curl_hdl, link, &tdoc);	
 		check(res ==  0, "failed to fetch results page");
 
 		res = sncf_find_next_results(tdoc, &new_link);
@@ -88,5 +88,6 @@ error:
 	//Dump last download (in case of error)
 	tidySaveFile(tdoc, "dumpfile-exit.html");
 	tidyRelease(tdoc);
+	curl_tidy_cleanup(curl_hdl);
 	return 0;
 }

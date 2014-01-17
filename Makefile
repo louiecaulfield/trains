@@ -6,7 +6,7 @@ debug: CFLAGS+=-DDEBUG
 debug: all 
 
 
-main: html.o curl_http.o sncf.o
+main: html.o curl_tidy.o sncf.o
 db: sncf_stations_to_db
 
 clean: 

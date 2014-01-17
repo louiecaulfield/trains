@@ -7,7 +7,7 @@
 #include "sncf.h"
 #include "sncf_stations.h"
 #include "html.h"
-#include "curl_http.h"
+#include "curl_tidy.h"
 
 static char * postfields_default;
 
@@ -52,7 +52,7 @@ int sncf_post_form(CURL *curl_hdl, TidyDoc *tdoc, char ** link,
 	int res;
 	construct_postfields(curl_hdl, &postfields, 
 		time_departure, stn_departure, stn_arrival);
-	res = fetch_html_post(curl_hdl, 
+	res = curl_tidy_post(curl_hdl, 
 		"http://be.voyages-sncf.com/vsc/train-ticket/?_LANG=en",
 		postfields, tdoc);
 	if(postfields) free(postfields);

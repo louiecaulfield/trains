@@ -103,6 +103,8 @@ int main(int argc, char *argv[])
 	}
 	free(link);
 
+	free(stn_departure);
+	free(stn_arrival);
 	if(tdoc) {
 		tidySaveFile(tdoc, "dumpfile-exit.html");
 		tidyRelease(tdoc);
@@ -112,6 +114,8 @@ int main(int argc, char *argv[])
 	return 0;
 
 error:
+	free(stn_departure);
+	free(stn_arrival);
 	if(tdoc) {
 		tidySaveFile(tdoc, "dumpfile-exit.html");
 		tidyRelease(tdoc);

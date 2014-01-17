@@ -238,7 +238,7 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_t **ret, i
 		trains[i].stn_arrival = stn_arr_id;	
 		trains[i].time_departure = mktime(&tm_departure) ;	
 		trains[i].time_arrival = mktime(&tm_arrival) ;	
-		trains[i].operator = strdup(operator);	
+		trains[i].operator = operator;	
 		trains[i].price = price;
 		trains[i].number = train_nr;
 		i++;

@@ -39,13 +39,15 @@ int station_find(sqlite3 *db_hdl, const char *query, char **name, int* id)
 
 	while( sqlite3_step(sql_stmt)==SQLITE_ROW ) {
 		_id = sqlite3_column_int(sql_stmt, 0);
-		free(_name);
-		_name = strdup((const char*)sqlite3_column_text(sql_stmt, 1));
+		if(name) {
+			free(_name);
+			_name = strdup((const char*)sqlite3_column_text(sql_stmt, 1));
+		}
 	} 
 	debug("found station [id=%d, name=%s]", _id, _name);	
 error:
 	sqlite3_finalize(sql_stmt);
-	if(name && _name) *name = _name;
+	if(name) *name = _name;
 	if(id && _id) *id = _id;
 	return _name?0:-1;
 }

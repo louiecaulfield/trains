@@ -70,7 +70,7 @@ error:
 	return -1;
 }
 
-int sncf_find_next_results(TidyDoc tdoc, char ** link)
+int sncf_find_next_results_link(TidyDoc tdoc, char ** link)
 {
 	TidyNode summary, node;
 	struct node_list *nodes = NULL;
@@ -97,41 +97,12 @@ error:
 	return -1;
 }
 
-void sncf_print_train_info(struct train_info *trains, size_t n, int header)
-{
-	int i;
-	char format[255]= "%15s | %15s | %20s | %20s | %8s | %20s\n";
-	if(header) {
-		printf(format, "Departure", "Arrival", "TOD", "arr", "Price", "Operator");
-		printf("-------------------------\n");
-	}
-	for(i = 0; i < n; i++)
-	{
-		char time_arr[20], time_dep[20], price[10];
-		struct tm tm;	
-		localtime_r(&trains[i].time_departure, &tm);
-		strftime(time_dep, 20, "%v %R", &tm);
-		localtime_r(&trains[i].time_arrival, &tm);
-		strftime(time_arr, 20, "%v %R", &tm);
-		sprintf(price, "%2.2f", trains[i].price);	
-
-		printf(format,
-			trains[i].stn_departure,
-			trains[i].stn_arrival,
-			time_dep,
-			time_arr,
-			price,
-			trains[i].operator
-			);
-	}	
-}
-
-size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
+size_t sncf_parse_results(TidyDoc tdoc, struct train_t **ret)
 {
 	TidyNode summary, node;
 	struct node_list *nodes = NULL, *node_cur = NULL;
 	struct node_list *cells = NULL, *cell_cur = NULL;
-	struct train_info *trains = NULL;
+	struct train_t *trains = NULL;
 	char *data = NULL;
 	char *stn_departure = NULL, *stn_arrival = NULL;
 	char *cell_text = NULL;
@@ -201,7 +172,7 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	freeNodeList(&nodes);
 
 	/*
-	 * Go through all <tr> and parse their <td> into train_info
+	 * Go through all <tr> and parse their <td> into train_t
 	 */
 	res = findNodesByName(&nodes, node, "tr");
 	check(res == 4, "didn't find required 4 <tr> nodes");
@@ -211,7 +182,7 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 			ntrains, getAttributeValue(node_cur->node, "class"));
 		if(!trains) {
 			debug("allocating trains");
-			trains = calloc(ntrains, sizeof(struct train_info));	
+			trains = calloc(ntrains, sizeof(struct train_t));	
 			check_mem(trains);
 			//initialise dept & arr stn as well
 			for(size_t i = 0; i < ntrains; i++) {
@@ -284,7 +255,7 @@ size_t sncf_parse_train_info(TidyDoc tdoc, struct train_info **ret)
 	freeNodeList(&nodes);
 	goto success;
 error:
-	sncf_free_train_info(&trains, &ntrains);	
+	free_trains(&trains, &ntrains);	
 	free(cell_text);
 	freeNodeList(&cells);
 	freeNodeList(&nodes);
@@ -296,20 +267,6 @@ success:
 
 }
 
-void sncf_free_train_info(struct train_info **trains, size_t *ntrains)
-{
-	size_t i;
-	if(*trains) {
-		for(i = 0; i < *ntrains; i++) {
-			free((*trains)[i].stn_departure);
-			free((*trains)[i].stn_arrival);
-			free((*trains)[i].operator);
-		}
-	}
-	free(*trains);
-	*trains = NULL;
-	*ntrains = 0;
-}
 static char * postfields_default = 
 	"site_country=BE&"
 	"site_language=en&"

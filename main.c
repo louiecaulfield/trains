@@ -3,6 +3,7 @@
 #include <curl/curl.h>
 #include <tidy/tidy.h>
 #include <tidy/buffio.h>
+#include "trains.h"
 #include "include/dbg.h"
 #include "html.h"
 #include "curl_tidy.h"
@@ -19,7 +20,7 @@ int main(int argc, char *argv[])
 	struct tm time_dep;
 	//FIXME: get these numbers dynamically 
 	int stn_departure =  91-5, stn_arrival = 381-5;
-	struct train_info *trains = NULL;
+	struct train_t *trains = NULL;
 	size_t ntrains;
 
 	//Set up some stuff
@@ -47,7 +48,7 @@ int main(int argc, char *argv[])
 		res = curl_tidy_get(curl_hdl, link, &tdoc);	
 		check(res ==  0, "failed to fetch results page");
 
-		res = sncf_find_next_results(tdoc, &new_link);
+		res = sncf_find_next_results_link(tdoc, &new_link);
 		check(res == 0, "failed to get link to next results");
 
 /*
@@ -74,11 +75,11 @@ int main(int argc, char *argv[])
 			continue;
 		}
 
-		sncf_free_train_info(&trains, &ntrains);
-		ntrains = sncf_parse_train_info(tdoc, &trains);
+		free_trains(&trains, &ntrains);
+		ntrains = sncf_parse_results(tdoc, &trains);
 		check(ntrains, "No trains found");
 		consecutive_success++; 
-		sncf_print_train_info(trains, ntrains, 0);
+		print_trains(trains, ntrains, 0);
 
 		free(link);
 		link = new_link;

@@ -23,18 +23,18 @@ int main(int argc, char *argv[])
 	struct tm time_dep;
 	char *stn_departure, *stn_arrival;
 	struct train_t *trains = NULL;
-	size_t ntrains;
+	size_t ntrains, n;
 
 	//Set up Curl 
 	check(curl_tidy_init(&curl_hdl)==0,"Failed to initialise curl");
 	debug("curl_hdl %p", curl_hdl);
 
 	//Set up database and get names
-	res = database_init(&db_hdl, "test.db");
+	res = database_init(&db_hdl, "/Users/jasper/dev/c/sncf/test.db");
 	check(res==0, "Failed to open database"); 
-	res = station_get_name(db_hdl, "Brussels Midi", &stn_departure);
+	res = station_find(db_hdl, "Brussels Midi", &stn_departure, NULL);
 	check(res==0, "Failed to get departure station name");
-	res = station_get_name(db_hdl, "Lyon", &stn_arrival);
+	res = station_find(db_hdl, "Lyon", &stn_arrival, NULL);
 	check(res==0, "Failed to get arrival station name");
 
 	//Send search query 
@@ -86,10 +86,16 @@ int main(int argc, char *argv[])
 		}
 
 		free_trains(&trains, &ntrains);
-		ntrains = sncf_parse_results(tdoc, &trains);
+		ntrains = sncf_parse_results(db_hdl, tdoc, &trains);
 		check(ntrains, "No trains found");
 		consecutive_success++; 
 		print_trains(trains, ntrains, 0);
+		n = train_store(db_hdl, trains, ntrains);	
+		if(n != ntrains) {
+			log_info("Only stored %lu out of %lu trains, aborting", n, ntrains);
+			goto error;
+		}
+		debug("Stored %d trains", res);
 
 		free(link);
 		link = new_link;

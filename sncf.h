@@ -13,6 +13,6 @@ int sncf_post_form(CURL *curl_hdl, TidyDoc *tdoc, char ** link,
 	struct tm *time_departure, 
 	char *stn_departure, char *stn_arrival);
 int sncf_find_next_results_link(TidyDoc tdoc, char ** link);
-size_t sncf_parse_results(TidyDoc tdoc, struct train_t **ret);
+size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_t **ret);
 
 #endif

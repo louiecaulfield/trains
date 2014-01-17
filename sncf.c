@@ -3,11 +3,13 @@
 #include <tidy/tidy.h>
 #include <time.h>
 #include <string.h>
+#include <sqlite3.h>
 #include "include/dbg.h"
 #include "sncf.h"
 #include "sncf_stations.h"
 #include "html.h"
 #include "curl_tidy.h"
+#include "database.h"
 
 static char * postfields_default;
 
@@ -97,7 +99,7 @@ error:
 	return -1;
 }
 
-size_t sncf_parse_results(TidyDoc tdoc, struct train_t **ret)
+size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_t **ret)
 {
 	TidyNode summary, node;
 	struct node_list *nodes = NULL, *node_cur = NULL;
@@ -105,6 +107,7 @@ size_t sncf_parse_results(TidyDoc tdoc, struct train_t **ret)
 	struct train_t *trains = NULL;
 	char *data = NULL;
 	char *stn_departure = NULL, *stn_arrival = NULL;
+	int stn_departure_id, stn_arrival_id;
 	char *cell_text = NULL;
 	const char *header_attr = NULL;
 	unsigned int day, month, year;
@@ -185,9 +188,11 @@ size_t sncf_parse_results(TidyDoc tdoc, struct train_t **ret)
 			trains = calloc(ntrains, sizeof(struct train_t));	
 			check_mem(trains);
 			//initialise dept & arr stn as well
+			station_find(db_hdl, stn_departure, NULL, &stn_departure_id);
+			station_find(db_hdl, stn_arrival, NULL, &stn_arrival_id);
 			for(size_t i = 0; i < ntrains; i++) {
-				trains[i].stn_departure = strdup(stn_departure);
-				trains[i].stn_arrival = strdup(stn_arrival);
+				trains[i].stn_departure = stn_departure_id; 
+				trains[i].stn_arrival = stn_arrival_id; 
 			}
 		}
 
@@ -263,6 +268,7 @@ success:
 	free(stn_departure);
 	free(stn_arrival);
 	*ret = trains;
+	debug("returning from parse");
 	return ntrains;
 
 }

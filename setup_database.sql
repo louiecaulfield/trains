@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS trains(
 	time_arr 	INTEGER,
 	legs		INTEGER,
 	price		REAL,
-	operator	REFERENCES operators(operatorid)
+	operator	REFERENCES operators(operatorid),
+	time_query	INTEGER
 	);
 	

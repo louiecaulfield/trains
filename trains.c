@@ -6,7 +6,7 @@
 void print_trains(sqlite3 *db_hdl, struct train_list_t *trains, int header)
 {
 	struct train_list_t *train;	
-	char format[255]= "%15s | %15s | %20s | %20s | %8s | %20s\n";
+	char format[255]= "%20s | %20s | %20s | %20s | %8s | %20s\n";
 	if(header) {
 		printf(format, "Departure", "Arrival", "TOD", "arr", "Price", "Operator");
 		printf("-------------------------\n");

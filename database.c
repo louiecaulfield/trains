@@ -95,6 +95,7 @@ int station_insert(sqlite3 *db_hdl, const char *name)
 	check(res==SQLITE_OK, "failed to prepare sql statement (%s)", sqlite3_errmsg(db_hdl));	
 	check(sqlite3_step(sql_stmt) == SQLITE_DONE,
 		"Failed to insert new station: %s", sqlite3_errmsg(db_hdl));
+	log_info("Inserted station %s into database", name);
 	sqlite3_finalize(sql_stmt);
 	return 0;
 error:

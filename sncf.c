@@ -149,7 +149,7 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **r
 		res = findNodesByClass(&nodes, n_train_cur->node, "travel_resume_detail");
 		check(res==1,"found no or more than 1 travel_resume_detail node");
 		if(!testNodeClass(nodes->node, "direct")) {
-			log_info("Ignoring node, indirect train");	
+			debug("Ignoring node, indirect train");	
 			continue;
 		}
 		freeNodeList(&nodes);

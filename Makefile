@@ -1,12 +1,20 @@
-CFLAGS=-Wall -g -lcurl -ltidy -lsqlite3 -I/opt/local/include
+CFLAGS=-Wall -g
+LDFLAGS=-lcurl -ltidy -lsqlite3
+
+OBJECTS=html.o curl_tidy.o sncf.o trains.o database.o util.o train_scraper.o
+EXECUTABLE=train_scraper
 
 all: CFLAGS+=-DNDEBUG
-all: executable 
+all: $(EXECUTABLE) 
 
-debug: executable 
-executable: train_scraper sncf_stations_to_db
+debug: $(EXECUTABLE) 
 
-train_scraper: html.o curl_tidy.o sncf.o trains.o database.o util.o
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
+$(EXECUTABLE): $(OBJECTS) 
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+.PHONY: clean
 clean: 
-	rm train_scraper sncf_stations_to_db *.o
+	rm train_scraper *.o

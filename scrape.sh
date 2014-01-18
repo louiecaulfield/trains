@@ -16,6 +16,7 @@ do
 	$SCRAPER $ARGS
 #scrape B->A
 	ARGS+=`echo $line | awk '{ print " -f " $2 " -t " $1}'`
+	echo $SCRAPER $ARGS
 	$SCRAPER $ARGS
 
 done < "$CONNECTIONS"

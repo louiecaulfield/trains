@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 			break;
 		case '?':
 			if(optopt=='d' || optopt=='f' || optopt=='t') {
-				log_err("Missing argument for option -%c", optopt);
+				log_info("Missing argument for option -%c", optopt);
 				goto usage;
 			} else if(isprint(optopt)) {
 				log_info("Unknown option '-%c'", optopt);
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	if(!dbfile || !stn_departure || !stn_arrival) goto usage;
-	log_info("Starting %s with dbfile='%s', stn_dep='%s', stn_arr='%s'",
+	debug("Starting %s with dbfile='%s', stn_dep='%s', stn_arr='%s'",
 		argv[0], dbfile, stn_departure, stn_arrival);
 
 	//Set up Curl 
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 		&link, &time_dep, 
 		stn_departure, stn_arrival);
 	check(res==0, "Failed to perform query");
-	log_info("Initialized (%d) - link = %s", res, link);
+	debug("Initialized (%d) - link = %s", res, link);
 
 	//Fetch, parse, print
 	while(1) {	
@@ -109,9 +109,9 @@ int main(int argc, char *argv[])
 			free(link);
 			free(new_link);
 
-			log_warn("Next results page is the same as the current one (%d successes)", consecutive_success);
+			log_info("Next results page is the same as the current one (%d successes)", consecutive_success);
 			check(consecutive_success > 2,
-				"Only 2 success before loop, aborting");
+				"less than 3 success before loop, aborting");
 			localtime_r(&get_last_train(trains)->train.time_departure, &time_dep);
 
 			consecutive_success = 0;

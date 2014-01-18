@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 	log_info("Initialized (%d) - link = %s", res, link);
 
 	//Fetch, parse, print
-	for(int i = 0; i < 3000; i++) {
+	while(true) {	
 		debug("Next link %s", link);
 		tidyRelease(tdoc);
 		res = curl_tidy_get(curl_hdl, link, &tdoc);	

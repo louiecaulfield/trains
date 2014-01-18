@@ -52,6 +52,7 @@ int sncf_post_form(CURL *curl_hdl, TidyDoc *tdoc, char ** link,
 	const char *stn_departure, const char *stn_arrival)
 {
 	char *postfields = NULL;
+	const char *_link;
 	int res;
 	construct_postfields(curl_hdl, &postfields, 
 		time_departure, stn_departure, stn_arrival);
@@ -62,10 +63,11 @@ int sncf_post_form(CURL *curl_hdl, TidyDoc *tdoc, char ** link,
 	check(res == 0, "Something went wrong fetching (%d)", res);
 
 	//Find my special one
-	*link = strdup(
-		getAttributeValue(
-		findNodeById(tidyGetRoot(*tdoc),"url_redirect_proposals"), 
-		"href"));
+	_link = getAttributeValue(
+			findNodeById(tidyGetRoot(*tdoc),
+				"url_redirect_proposals"), 
+				"href");
+	*link = _link?strdup(_link):NULL;
 	check(*link, "Failed to find a link");
 
 	return 0;

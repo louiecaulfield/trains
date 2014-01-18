@@ -4,7 +4,7 @@ SCRAPER=./train_scraper
 CONNECTIONS=connections.txt
 DBFILE=test.db
 
-rm $DBFILE i
+rm $DBFILE 
 ./setup.sh
 
 while read -r line

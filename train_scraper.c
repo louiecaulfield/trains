@@ -26,7 +26,8 @@ int main(int argc, char *argv[])
 
 	//Query initialisers
 	char *link, *new_link;
-	struct tm time_dep;
+	struct tm tm_dep;
+	time_t last_time_dep = 0;
 
 	//Parse result holders
 	struct train_list_t *trains = NULL;
@@ -81,10 +82,10 @@ int main(int argc, char *argv[])
 
 	//Send search query 
 	time_t now = time(NULL);
-	localtime_r(&now, &time_dep);
-	time_dep.tm_hour++;
+	localtime_r(&now, &tm_dep);
+	tm_dep.tm_hour++;
 	res = sncf_post_form(curl_hdl, &tdoc, 
-		&link, &time_dep, 
+		&link, &tm_dep, 
 		stn_departure, stn_arrival);
 	check(res==0, "Failed to perform query");
 	debug("Initialized (%d) - link = %s", res, link);
@@ -111,7 +112,7 @@ int main(int argc, char *argv[])
 				log_info("less than 3 success before loop, this is the end");
 				break;
 			}
-			localtime_r(&get_last_train(trains)->train.time_departure, &time_dep);
+			localtime_r(&last_time_dep, &tm_dep);
 
 			consecutive_success = 0;
 			tidyRelease(tdoc);
@@ -119,16 +120,30 @@ int main(int argc, char *argv[])
 			free(link);
 			free(new_link);
 			res = sncf_post_form(curl_hdl, &tdoc, 
-				&link, &time_dep, 
+				&link, &tm_dep, 
 				stn_departure, stn_arrival);
 			check(res==0, "Failed to perform query");
 			continue;
+		}
+
+		if(trains) {
+			debug("last time dep = %lu - train time dep = %lu", last_time_dep, get_last_train(trains)->train.time_departure);
 		}
 
 		free_trains(trains);
 		trains = NULL;
 		ntrains = sncf_parse_results(db_hdl, tdoc, &trains);
 		debug("found %lu trains", ntrains);	
+
+		//Check if we're getting the same results over and over again (only iff we have results (ntrains)
+		// and only if last_time_dep was set before (check if it's not 0 as initialized))
+		if(last_time_dep && ntrains && get_last_train(trains)->train.time_departure==last_time_dep) {
+			log_info("Same departure time in the last 2 sets of results... this is the end");
+			break;
+		}
+		if(ntrains)
+			last_time_dep = get_last_train(trains)->train.time_departure;
+
 		n = train_store(db_hdl, trains);	
 		if(n!=ntrains) {
 			log_info("only stored %lu out of %lu trains, aborting", n, ntrains);
@@ -138,8 +153,8 @@ int main(int argc, char *argv[])
 		total+=n;
 
 #ifdef NDEBUG
-		localtime_r(&get_last_train(trains)->train.time_departure, &time_dep);
-		strftime(str_time_dep, 20, "%e-%b-%Y %R", &time_dep);
+		localtime_r(&get_last_train(trains)->train.time_departure, &tm_dep);
+		strftime(str_time_dep, 20, "%e-%b-%Y %R", &tm_dep);
 		printf("Processed %6lu trains - Last one departed at %s\r",
 			total, str_time_dep); 		
 		fflush(stdout);
@@ -159,7 +174,10 @@ int main(int argc, char *argv[])
 	}
 	curl_tidy_cleanup(curl_hdl);
 	database_cleanup(db_hdl);
-	log_info("Exiting after storing %lu trains", total);
+
+	localtime_r(&get_last_train(trains)->train.time_departure, &tm_dep);
+	strftime(str_time_dep, 20, "%e-%b-%Y %R", &tm_dep);
+	log_info("Exiting after storing %lu trains (last one arriving %s)", total, str_time_dep);
 	return 0;
 
 error:

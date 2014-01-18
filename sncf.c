@@ -100,7 +100,7 @@ error:
 	return -1;
 }
 
-size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **ret, int stn_departure_id, int stn_arrival_id)
+size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **ret)
 {
 	TidyNode node, n_hour, n_duration,
 		n_station, n_transporter, n_train_nr;

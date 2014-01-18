@@ -9,5 +9,5 @@ fi
 echo Setting up database
 sqlite3 $DB_FILE < setup_database.sql
 
-echo Filling database with SNCF cities
-./sncf_stations_to_db $DB_FILE
+#echo Filling database with SNCF cities
+#./sncf_stations_to_db $DB_FILE

@@ -11,24 +11,30 @@
 #include "curl_tidy.h"
 #include "sncf.h"
 
-#define TMP_FN_TEMPLATE "schedrip-XXXXXX"
-
 int main(int argc, char *argv[])
 {
 	int res, consecutive_success = 0;
+
+	//Handles
 	CURL *curl_hdl = NULL;
 	sqlite3 *db_hdl = NULL;
  	TidyDoc tdoc = NULL;
+
+	//Query initialisers
 	char *link, *new_link;
 	struct tm time_dep;
 	char *stn_departure = NULL, *stn_arrival = NULL;
-	int stn_dep_id, stn_arr_id;
+
+	//Parse result holders
 	struct train_list_t *trains = NULL;
 	size_t n, ntrains;
 
 	//Parse cmdline
-	if(argc != 2)
-		printf(" usage: %s <db>", argv[0]);
+	if(argc != 2) {
+		printf(" usage: %s <db>\n", argv[0]);
+		return -1;
+	}
+
 	//Set up Curl 
 	check(curl_tidy_init(&curl_hdl)==0,"Failed to initialise curl");
 	debug("curl_hdl %p", curl_hdl);
@@ -36,10 +42,9 @@ int main(int argc, char *argv[])
 	//Set up database and get names
 	res = database_init(&db_hdl, argv[1]);
 	check(res==0, "Failed to open database"); 
-	res = station_find(db_hdl, "Brussels Midi", &stn_departure, &stn_dep_id);
-	check(res==0, "Failed to get departure station name");
-	res = station_find(db_hdl, "Paris", &stn_arrival, &stn_arr_id);
-	check(res==0, "Failed to get arrival station name");
+
+	asprintf(&stn_departure, "Brussels Midi");
+	asprintf(&stn_arrival, "Paris Nord");
 
 	//Send search query 
 	time_dep.tm_sec = time_dep.tm_min = 0;
@@ -91,7 +96,7 @@ int main(int argc, char *argv[])
 
 		free_trains(trains);
 		trains = NULL;
-		ntrains = sncf_parse_results(db_hdl, tdoc, &trains, stn_dep_id, stn_arr_id);
+		ntrains = sncf_parse_results(db_hdl, tdoc, &trains);
 		check(n, "No trains found");
 		consecutive_success++; 
 		print_trains(trains, 0);
@@ -100,7 +105,7 @@ int main(int argc, char *argv[])
 			log_info("only stored %lu out of %lu trains, aborting", n, ntrains);
 			goto error;
 		}
-		debug("Stored all trains", n);
+		debug("Stored all %lu trains", n);
 
 		free(link);
 		link = new_link;

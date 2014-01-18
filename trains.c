@@ -1,8 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include "database.h"
 #include "trains.h"
 
-void print_trains(struct train_list_t *trains, int header)
+void print_trains(sqlite3 *db_hdl, struct train_list_t *trains, int header)
 {
 	struct train_list_t *train;	
 	char format[255]= "%15s | %15s | %20s | %20s | %8s | %20s\n";
@@ -12,7 +13,7 @@ void print_trains(struct train_list_t *trains, int header)
 	}
 	for(train = trains; train; train = train->next)
 	{
-		char stn_dep[10], stn_arr[10], time_arr[20], time_dep[20], price[10];
+		char *stn_dep, *stn_arr, time_arr[20], time_dep[20], price[10];
 		struct tm tm;	
 		localtime_r(&train->train.time_departure, &tm);
 		strftime(time_dep, 20, "%v %R", &tm);
@@ -20,8 +21,8 @@ void print_trains(struct train_list_t *trains, int header)
 		strftime(time_arr, 20, "%v %R", &tm);
 		sprintf(price, "%2.2f", train->train.price);	
 
-		snprintf(stn_dep, 10, "%d", train->train.stn_departure);
-		snprintf(stn_arr, 10, "%d", train->train.stn_arrival);
+		station_get(db_hdl, train->train.stn_departure, &stn_dep);
+		station_get(db_hdl, train->train.stn_arrival, &stn_arr);
 
 		printf(format,
 			stn_dep,	

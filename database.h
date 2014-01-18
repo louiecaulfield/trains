@@ -8,6 +8,7 @@ int database_init(sqlite3 **db_hdl, const char *dbfile);
 void database_cleanup(sqlite3 *db_hdl);
 
 int station_find(sqlite3 *db_hdl, const char *query, char **name, int* id);
+int station_get(sqlite3 *db_hdl, int id, char **name);
 int station_insert(sqlite3 *db_hdl, const char *name);
 int station_find_or_insert(sqlite3 *db_hdl, const char *query, char **name, int* id);
 

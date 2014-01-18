@@ -21,6 +21,33 @@ void database_cleanup(sqlite3 *db_hdl)
 {
 	sqlite3_close(db_hdl);
 }
+int station_get(sqlite3 *db_hdl, int id, char **name)
+{
+	int res = 0;
+	sqlite3_stmt *sql_stmt = NULL;
+	char *sql_query;
+
+	*name = NULL;	
+	asprintf(&sql_query,
+		"SELECT name FROM stations WHERE stationid=%d LIMIT 1;",
+		id);
+	res = sqlite3_prepare_v2(db_hdl, sql_query, -1, &sql_stmt, NULL);
+	debug("qry =[%s]", sql_query);
+	free(sql_query);	
+	check(res==SQLITE_OK, "failed to prepare sql statement (%s)", sqlite3_errmsg(db_hdl));	
+
+	if( sqlite3_step(sql_stmt)==SQLITE_ROW ) {
+		*name = strdup((const char*)sqlite3_column_text(sql_stmt, 0));
+	} 
+
+	if(!*name) {
+		debug("found station [id=%d, name=%s]", id, *name);	
+	}
+error:
+	sqlite3_finalize(sql_stmt);
+	return *name?0:-1;
+}
+
 
 int station_find(sqlite3 *db_hdl, const char *query, char **name, int* id)
 {
@@ -44,15 +71,15 @@ int station_find(sqlite3 *db_hdl, const char *query, char **name, int* id)
 			_name = strdup((const char*)sqlite3_column_text(sql_stmt, 1));
 		}
 	} 
-	sqlite3_finalize(sql_stmt);
 
-	if(!_id) {
+	if(_id) {
 		debug("found station [id=%d, name=%s]", _id, _name);	
 	}
 error:
+	sqlite3_finalize(sql_stmt);
 	if(name) *name = _name;
 	if(id && _id) *id = _id;
-	return _name?0:-1;
+	return _id?0:-1;
 }
 
 int station_insert(sqlite3 *db_hdl, const char *name)
@@ -71,6 +98,7 @@ int station_insert(sqlite3 *db_hdl, const char *name)
 	sqlite3_finalize(sql_stmt);
 	return 0;
 error:
+	sqlite3_finalize(sql_stmt);
 	return -1;
 }
 int station_find_or_insert(sqlite3 *db_hdl, const char *query, char **name, int* id)

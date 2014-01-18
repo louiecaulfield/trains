@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
 		ntrains = sncf_parse_results(db_hdl, tdoc, &trains);
 		check(ntrains, "No trains found");
 		consecutive_success++; 
-		print_trains(trains, 0);
+		print_trains(db_hdl, trains, 0);
 		n = train_store(db_hdl, trains);	
 		if(n!=ntrains) {
 			log_info("only stored %lu out of %lu trains, aborting", n, ntrains);

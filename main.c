@@ -75,13 +75,9 @@ int main(int argc, char *argv[])
 	check(res==0, "Failed to open database"); 
 
 	//Send search query 
-	time_dep.tm_sec = time_dep.tm_min = 0;
-	time_dep.tm_hour = 15;
-	time_dep.tm_mday = 4;
-	time_dep.tm_mon = 2-1; //February
-	time_dep.tm_year = 2014 - 1900;
-	time_dep.tm_isdst = -1;	
-
+	time_t now = time(NULL);
+	localtime_r(&now, &time_dep);
+	time_dep.tm_hour++;
 	res = sncf_post_form(curl_hdl, &tdoc, 
 		&link, &time_dep, 
 		stn_departure, stn_arrival);

@@ -9,13 +9,14 @@ rm $DBFILE
 
 while read -r line
 do
-	STATIONS=$line
-	ARGS=" -d $DBFILE"
 #scrape A->B
+	ARGS=" -d $DBFILE"
 	ARGS+=`echo $line | awk '{ print " -f " $1 " -t " $2}'`
 	echo $SCRAPER $ARGS
 	$SCRAPER $ARGS
+
 #scrape B->A
+	ARGS=" -d $DBFILE"
 	ARGS+=`echo $line | awk '{ print " -f " $2 " -t " $1}'`
 	echo $SCRAPER $ARGS
 	$SCRAPER $ARGS

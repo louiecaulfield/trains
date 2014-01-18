@@ -1,0 +1,11 @@
+Brussels		Amsterdam
+Brussels		Paris
+Brussels		Perpignan
+Brussels		Lyon
+Brussels		Marseille
+Paris			Perpignan
+Paris			Marseille
+Paris			Lyon
+Paris			Nice
+Perpignan		Barcelona
+Barcelona		Madrid

@@ -154,18 +154,6 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **r
 		}
 		freeNodeList(&nodes);
 
-		//Ok, a good train, allocate memory
-		train_new = malloc(sizeof(struct train_list_t));
-		check_mem(train_new);
-		train_new->next = NULL;
-		train_new->train.operator = NULL;
-		if(train) {
-			train->next = train_new;
-			train = train_new;
-		} else { //first assignment
-			trains_head = train = train_new;		
-		}
-
 		tm_departure = tm_outward_date;
 		//Get the day
 		node = findNodeNByClass(n_train_cur->node, 1, "day-info");
@@ -187,6 +175,7 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **r
 		check(n_station, "Departure station node not found");
 		node = findNodeNByName(n_station, 2, "p");
 		getNodeText(tdoc, node, &node_text);
+		debug("Departure station [%s]", strtrim(node_text));
 		station_find_or_insert(db_hdl, strtrim(node_text), NULL, &stn_dep_id);
 		debug("Departure station = [%s](id=%d)", node_text, stn_dep_id);
 		check(stn_dep_id, "Couldn't find departure station id");
@@ -209,6 +198,7 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **r
 		check(n_station, "Arrival station node not found");
 		node = findNodeNByName(n_station, 2, "p");
 		getNodeText(tdoc, node, &node_text);
+		debug("Arrival station [%s]", strtrim(node_text));
 		station_find_or_insert(db_hdl, strtrim(node_text), NULL, &stn_arr_id);
 		debug("Arrival station = [%s](id=%d)", strtrim(node_text), stn_arr_id);
 		check(stn_arr_id, "Couldn't find arrival station id");
@@ -246,6 +236,19 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **r
 			free(node_text);
 		}
 		freeNodeList(&nodes);
+
+		//Ok, a good train, allocate memory
+		train_new = malloc(sizeof(struct train_list_t));
+		check_mem(train_new);
+		train_new->next = NULL;
+		train_new->train.operator = NULL;
+		if(train) {
+			train->next = train_new;
+			train = train_new;
+		} else { //first assignment
+			trains_head = train = train_new;		
+		}
+
 
 		train->train.stn_departure = stn_dep_id;	
 		train->train.stn_arrival = stn_arr_id;	

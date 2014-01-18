@@ -121,8 +121,8 @@ int main(int argc, char *argv[])
 		free_trains(trains);
 		trains = NULL;
 		ntrains = sncf_parse_results(db_hdl, tdoc, &trains);
-		check(ntrains, "No trains found");
-		consecutive_success++; 
+		debug("found %lu trains", ntrains);	
+
 		print_trains(db_hdl, trains, 0);
 		n = train_store(db_hdl, trains);	
 		if(n!=ntrains) {
@@ -131,6 +131,7 @@ int main(int argc, char *argv[])
 		}
 		debug("Stored all %lu trains", n);
 
+		consecutive_success++; 
 		free(link);
 		link = new_link;
 	}

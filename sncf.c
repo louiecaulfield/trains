@@ -49,7 +49,7 @@ error:
  */
 int sncf_post_form(CURL *curl_hdl, TidyDoc *tdoc, char ** link, 
 	struct tm *time_departure, 
-	char *stn_departure, char *stn_arrival)
+	const char *stn_departure, const char *stn_arrival)
 {
 	char *postfields = NULL;
 	int res;

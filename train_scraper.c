@@ -14,6 +14,7 @@
 
 int main(int argc, char *argv[])
 {
+	errno = 0;
 	//CL args
 	const char *dbfile = NULL, *stn_departure = NULL, *stn_arrival = NULL;
 	int ch,res, consecutive_success = 0;
@@ -30,6 +31,10 @@ int main(int argc, char *argv[])
 	//Parse result holders
 	struct train_list_t *trains = NULL;
 	size_t n, ntrains;
+
+	//Output
+	char str_time_dep[20];
+	size_t total = 0;
 
 	//Parse cmdline
 	while( (ch = getopt(argc, argv, "d:f:t:")) != -1 ) {
@@ -85,7 +90,7 @@ int main(int argc, char *argv[])
 	log_info("Initialized (%d) - link = %s", res, link);
 
 	//Fetch, parse, print
-	while(true) {	
+	while(1) {	
 		debug("Next link %s", link);
 		tidyRelease(tdoc);
 		res = curl_tidy_get(curl_hdl, link, &tdoc);	
@@ -122,14 +127,24 @@ int main(int argc, char *argv[])
 		trains = NULL;
 		ntrains = sncf_parse_results(db_hdl, tdoc, &trains);
 		debug("found %lu trains", ntrains);	
-
-		print_trains(db_hdl, trains, 0);
 		n = train_store(db_hdl, trains);	
 		if(n!=ntrains) {
 			log_info("only stored %lu out of %lu trains, aborting", n, ntrains);
 			goto error;
 		}
 		debug("Stored all %lu trains", n);
+		total+=n;
+
+#ifdef NDEBUG
+		localtime_r(&get_last_train(trains)->train.time_departure, &time_dep);
+		strftime(str_time_dep, 20, "%v %R", &time_dep);
+		printf("Processed %6lu trains - Last one departed at %s\r",
+			total, str_time_dep); 		
+		fflush(stdout);
+#else
+		print_trains(db_hdl, trains, 0);
+#endif
+
 
 		consecutive_success++; 
 		free(link);

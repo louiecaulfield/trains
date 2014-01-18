@@ -46,26 +46,41 @@ int station_find(sqlite3 *db_hdl, const char *query, char **name, int* id)
 	} 
 	sqlite3_finalize(sql_stmt);
 
-	//If no station found, insert it
 	if(!_id) {
-		asprintf(&sql_query, "INSERT INTO stations (name) VALUES ('%s')", query);
-		res = sqlite3_prepare_v2(db_hdl, sql_query, -1, &sql_stmt, NULL);
-		debug("qry =[%s]", sql_query);
-		free(sql_query);	
-		check(res==SQLITE_OK, "failed to prepare sql statement (%s)", sqlite3_errmsg(db_hdl));	
-		check(sqlite3_step(sql_stmt) == SQLITE_DONE,
-			"Failed to insert new station: %s", sqlite3_errmsg(db_hdl));
-		sqlite3_finalize(sql_stmt);
-		log_info("Re-querying after insertion");
-		station_find(db_hdl, query, &_name, &_id);	
+		debug("found station [id=%d, name=%s]", _id, _name);	
 	}
-	debug("found station [id=%d, name=%s]", _id, _name);	
 error:
 	if(name) *name = _name;
 	if(id && _id) *id = _id;
 	return _name?0:-1;
 }
 
+int station_insert(sqlite3 *db_hdl, const char *name)
+{
+	int res;
+	sqlite3_stmt *sql_stmt = NULL;
+	char *sql_query;
+
+	asprintf(&sql_query, "INSERT INTO stations (name) VALUES ('%s')", name);
+	res = sqlite3_prepare_v2(db_hdl, sql_query, -1, &sql_stmt, NULL);
+	debug("qry =[%s]", sql_query);
+	free(sql_query);	
+	check(res==SQLITE_OK, "failed to prepare sql statement (%s)", sqlite3_errmsg(db_hdl));	
+	check(sqlite3_step(sql_stmt) == SQLITE_DONE,
+		"Failed to insert new station: %s", sqlite3_errmsg(db_hdl));
+	sqlite3_finalize(sql_stmt);
+	return 0;
+error:
+	return -1;
+}
+int station_find_or_insert(sqlite3 *db_hdl, const char *query, char **name, int* id)
+{
+	if(station_find(db_hdl, query, name, id) == 0) {
+		return 0;
+	}
+	station_insert(db_hdl, query);
+	return station_find(db_hdl, query, name, id);
+}
 size_t train_store(sqlite3 *db_hdl, struct train_list_t *trains)
 {
 	size_t n = 0;

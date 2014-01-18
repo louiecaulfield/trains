@@ -148,7 +148,6 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **r
 		check(res==1,"found no or more than 1 travel_resume_detail node");
 		if(!testNodeClass(nodes->node, "direct")) {
 			log_info("Ignoring node, indirect train");	
-			n--;
 			continue;
 		}
 		freeNodeList(&nodes);
@@ -157,6 +156,7 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **r
 		train_new = malloc(sizeof(struct train_list_t));
 		check_mem(train_new);
 		train_new->next = NULL;
+		train_new->train.operator = NULL;
 		if(train) {
 			train->next = train_new;
 			train = train_new;
@@ -185,7 +185,7 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **r
 		check(n_station, "Departure station node not found");
 		node = findNodeNByName(n_station, 2, "p");
 		getNodeText(tdoc, node, &node_text);
-		station_find(db_hdl, strtrim(node_text), NULL, &stn_dep_id);
+		station_find_or_insert(db_hdl, strtrim(node_text), NULL, &stn_dep_id);
 		debug("Departure station = [%s](id=%d)", node_text, stn_dep_id);
 		check(stn_dep_id, "Couldn't find departure station id");
 		free(node_text);
@@ -207,7 +207,7 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **r
 		check(n_station, "Arrival station node not found");
 		node = findNodeNByName(n_station, 2, "p");
 		getNodeText(tdoc, node, &node_text);
-		station_find(db_hdl, strtrim(node_text), NULL, &stn_arr_id);
+		station_find_or_insert(db_hdl, strtrim(node_text), NULL, &stn_arr_id);
 		debug("Arrival station = [%s](id=%d)", strtrim(node_text), stn_arr_id);
 		check(stn_arr_id, "Couldn't find arrival station id");
 		free(node_text);
@@ -263,7 +263,7 @@ error:
 success:
 	*ret = trains_head;
 	debug("returning from parse");
-	return n;
+	return i;
 
 }
 

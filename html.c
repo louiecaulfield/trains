@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <stdio.h>
 #include <tidy/tidy.h>
 #include <tidy/buffio.h>
 #include <regex.h>
@@ -203,10 +205,9 @@ int findNodesByClass(struct node_list ** list, TidyNode node, const char * class
 
 TidyNode findNodeNByName(TidyNode root, int n, const char *name)
 {
-	int res;
 	struct node_list *nodes;
 	TidyNode node;
-	res = findNodesByName(&nodes, root, name);
+	findNodesByName(&nodes, root, name);
 	node = getNodeN(nodes, n); 
 	freeNodeList(&nodes);
 	return node;
@@ -214,10 +215,9 @@ TidyNode findNodeNByName(TidyNode root, int n, const char *name)
 
 TidyNode findNodeNByClass(TidyNode root, int n, const char *class)
 {
-	int res;
 	struct node_list *nodes;
 	TidyNode node;
-	res = findNodesByClass(&nodes, root, class);
+	findNodesByClass(&nodes, root, class);
 	node = getNodeN(nodes, n); 
 	freeNodeList(&nodes);
 	return node;
@@ -240,8 +240,8 @@ TidyNode getNodeN(struct node_list *nodes, int n)
 int countNodeList(struct node_list * list)
 {
 	int i = 0;
-	for(struct node_list *node_cur = list; 
-		node_cur; node_cur = node_cur->next)
+	struct node_list *node_cur;
+	for(node_cur = list; node_cur; node_cur = node_cur->next)
 		i++;	
 	return i;
 }

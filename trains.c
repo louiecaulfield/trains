@@ -16,9 +16,9 @@ void print_trains(sqlite3 *db_hdl, struct train_list_t *trains, int header)
 		char *stn_dep, *stn_arr, time_arr[20], time_dep[20], price[10];
 		struct tm tm;	
 		localtime_r(&train->train.time_departure, &tm);
-		strftime(time_dep, 20, "%v %R", &tm);
+		strftime(time_dep, 20, "%e-%b-%Y %R", &tm);
 		localtime_r(&train->train.time_arrival, &tm);
-		strftime(time_arr, 20, "%v %R", &tm);
+		strftime(time_arr, 20, "%e-%b-%Y %R", &tm);
 		sprintf(price, "%2.2f", train->train.price);	
 
 		station_get(db_hdl, train->train.stn_departure, &stn_dep);

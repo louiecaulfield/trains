@@ -56,7 +56,7 @@ static int curl_tidy_parse(TidyDoc *tdoc, TidyBuffer docbuf)
 	return 0;
 
 error:
-	if(&tidy_errbuf) tidyBufFree(&tidy_errbuf);
+	tidyBufFree(&tidy_errbuf);
 	return -1;
 }
 
@@ -74,7 +74,7 @@ int curl_tidy_read(char *filename, TidyDoc *tdoc)
 	res = fseek(file, 0L, SEEK_END);
 	check(res==0, "failed to seek file");
 	file_length = ftell(file);
-	check(file_length>=0, "File length negative (%lld)", file_length);
+	check(file_length>=0, "File length negative (%jd)", file_length);
 	rewind(file);
 
 	debug("read file with length %lld bytes", file_length);

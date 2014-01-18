@@ -1,3 +1,6 @@
+#define _GNU_SOURCE
+#define _XOPEN_SOURCE
+#include <stdio.h>
 #include <stdlib.h>
 #include <curl/curl.h>
 #include <tidy/tidy.h>
@@ -109,7 +112,7 @@ size_t sncf_parse_results(sqlite3 *db_hdl, TidyDoc tdoc, struct train_list_t **r
 	struct node_list *n_trains = NULL, *n_train_cur;
 	struct node_list *nodes, *node_cur;
 	struct train_list_t *train = NULL, *trains_head = NULL, *train_new;
-	size_t n = 0;
+	size_t n;
 
 	const char *data = NULL;
 	char str_debug[1024] = "";

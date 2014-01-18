@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 
 #ifdef NDEBUG
 		localtime_r(&get_last_train(trains)->train.time_departure, &time_dep);
-		strftime(str_time_dep, 20, "%v %R", &time_dep);
+		strftime(str_time_dep, 20, "%e-%b-%Y %R", &time_dep);
 		printf("Processed %6lu trains - Last one departed at %s\r",
 			total, str_time_dep); 		
 		fflush(stdout);

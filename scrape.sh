@@ -13,6 +13,7 @@ do
 	ARGS=" -d $DBFILE"
 #scrape A->B
 	ARGS+=`echo $line | awk '{ print " -f " $1 " -t " $2}'`
+	echo $SCRAPER $ARGS
 	$SCRAPER $ARGS
 #scrape B->A
 	ARGS+=`echo $line | awk '{ print " -f " $2 " -t " $1}'`

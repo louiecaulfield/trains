@@ -106,16 +106,18 @@ int main(int argc, char *argv[])
  * new query and continue from there
  */
 		if(!strcmp(link, new_link)) {
-			free(link);
-			free(new_link);
-
 			log_info("Next results page is the same as the current one (%d successes)", consecutive_success);
-			check(consecutive_success > 2,
-				"less than 3 success before loop, aborting");
+			if(consecutive_success <= 2) {
+				log_info("less than 3 success before loop, this is the end");
+				break;
+			}
 			localtime_r(&get_last_train(trains)->train.time_departure, &time_dep);
 
 			consecutive_success = 0;
 			tidyRelease(tdoc);
+
+			free(link);
+			free(new_link);
 			res = sncf_post_form(curl_hdl, &tdoc, 
 				&link, &time_dep, 
 				stn_departure, stn_arrival);
@@ -144,13 +146,12 @@ int main(int argc, char *argv[])
 #else
 		print_trains(db_hdl, trains, 0);
 #endif
-
-
 		consecutive_success++; 
 		free(link);
 		link = new_link;
 	}
 	free(link);
+	free(new_link);
 
 	if(tdoc) {
 		tidySaveFile(tdoc, "dumpfile-exit.html");
@@ -158,6 +159,7 @@ int main(int argc, char *argv[])
 	}
 	curl_tidy_cleanup(curl_hdl);
 	database_cleanup(db_hdl);
+	log_info("Exiting after storing %lu trains", total);
 	return 0;
 
 error:

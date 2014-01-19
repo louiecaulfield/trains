@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
 	char *link, *new_link;
 	struct tm tm_dep;
 	time_t last_time_dep = 0;
+	int requery = 0;
 
 	//Parse result holders
 	struct train_list_t *trains = NULL;
@@ -94,7 +95,7 @@ int main(int argc, char *argv[])
 	while(1) {	
 		debug("Next link %s", link);
 		tidyRelease(tdoc);
-		res = curl_tidy_get(curl_hdl, link, &tdoc);	
+		res = curl_tidy_get(curl_hdl, link, &tdoc);
 		check(res ==  0, "failed to fetch results page");
 
 		res = sncf_find_next_results_link(tdoc, &new_link);
@@ -112,6 +113,12 @@ int main(int argc, char *argv[])
 				log_info("less than 3 success before loop, this is the end");
 				break;
 			}
+			requery = 1;
+		}
+		if(requery) {
+			if(requery == 1) log_info("requerying cos of link loop");
+			if(requery == 2) log_info("requerying cos of time travel");
+			requery = 0;
 			localtime_r(&last_time_dep, &tm_dep);
 
 			consecutive_success = 0;
@@ -119,6 +126,7 @@ int main(int argc, char *argv[])
 
 			free(link);
 			free(new_link);
+			//FIXME: change tm_dep so the SNCF site is likely to handle it
 			res = sncf_post_form(curl_hdl, &tdoc, 
 				&link, &tm_dep, 
 				stn_departure, stn_arrival);
@@ -137,12 +145,20 @@ int main(int argc, char *argv[])
 
 		//Check if we're getting the same results over and over again (only iff we have results (ntrains)
 		// and only if last_time_dep was set before (check if it's not 0 as initialized))
-		if(last_time_dep && ntrains && get_last_train(trains)->train.time_departure==last_time_dep) {
-			log_info("Same departure time in the last 2 sets of results... this is the end");
+		if(last_time_dep && ntrains && get_last_train(trains)->train.time_departure < last_time_dep) {
+			requery = 2;
+			continue;	
+		}
+		if(last_time_dep && ntrains && get_last_train(trains)->train.time_departure == last_time_dep) {
+			log_info("Got the exact same results twice, finishing up");
 			break;
 		}
-		if(ntrains)
+		if(ntrains) {
 			last_time_dep = get_last_train(trains)->train.time_departure;
+		} else {
+			log_info("No trains found, this is the end");
+			break;
+		}
 
 		n = train_store(db_hdl, trains);	
 		if(n!=ntrains) {
@@ -168,6 +184,7 @@ int main(int argc, char *argv[])
 	free(link);
 	free(new_link);
 
+error:
 	if(tdoc) {
 		tidySaveFile(tdoc, "dumpfile-exit.html");
 		tidyRelease(tdoc);
@@ -180,14 +197,6 @@ int main(int argc, char *argv[])
 	log_info("Exiting after storing %lu trains (last one arriving %s)", total, str_time_dep);
 	return 0;
 
-error:
-	if(tdoc) {
-		tidySaveFile(tdoc, "dumpfile-exit.html");
-		tidyRelease(tdoc);
-	}
-	curl_tidy_cleanup(curl_hdl);
-	database_cleanup(db_hdl);
-	return -1;
 usage:
 	printf(
 		"Usage : %s -d <dbfile> -f <stn_dep> -t <stn_arr>\n"
